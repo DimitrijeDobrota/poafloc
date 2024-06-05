@@ -9,7 +9,7 @@ class Parser {
   public:
     struct option_t {
         const char *name;
-        char key;
+        const char key;
         const char *arg;
     };
 
@@ -20,25 +20,44 @@ class Parser {
         const parse_f parser;
     };
 
-    static int parse(const argp_t *argp, int argc, const char *argv[], void *input) {
-
+    static int parse(argp_t *argp, int argc, char *argv[], void *input) {
         for (int i = 1; i < argc; i++) {
+            bool opt_short = false, opt_long = false;
+
+            if (argv[i][0] != '-') {
+                argp->parser(-1, argv[i], input);
+                continue;
+            }
+
+            if (argv[i][1] != '-') opt_short = true;
+            else opt_long = true;
+
+            const char *opt = argv[i] + opt_long + 1;
+
             bool found = false;
-            for (int j = 0; argp->options[j].name; j++) {
+            for (int j = 0; argp->options[j].key; j++) {
                 const auto &option = argp->options[j];
-                const auto n = std::strlen(option.name);
                 const char *arg = 0;
 
-                if (std::strncmp(argv[i], option.name, n)) continue;
+                if (opt_short && opt[0] != option.key) continue;
 
-                if (argv[i][n] == '=') {
-                    if (!option.arg) {
-                        std::cerr << "option doesn't require a value\n";
-                        exit(1);
+                if (opt_long) {
+                    if(!option.name) continue;
+
+                    const auto n = std::strlen(option.name);
+                    if (std::strncmp(argv[i] + 2, option.name, n)) continue;
+
+                    if (opt[n] == '=') {
+                        if (!option.arg) {
+                            std::cerr << "option doesn't require a value\n";
+                            exit(1);
+                        }
+
+                        arg = opt + n + 1;
                     }
+                }
 
-                    arg = argv[i] + n + 1;
-                } else if (option.arg) {
+                if (option.arg && !arg) {
                     if (i == argc) {
                         std::cerr << "option missing a value\n";
                         exit(1);
@@ -59,8 +78,6 @@ class Parser {
                 std::cerr << std::format("unknown option {}\n", argv[i]);
                 return 1;
             }
-
-            argp->parser(-1, argv[i], input);
         }
 
         return 0;
@@ -70,4 +87,3 @@ class Parser {
 };
 
 #endif
-
