@@ -54,11 +54,11 @@ int parse_opt(int key, const char *arg, void *input) {
 
 // clang-format off
 static const Parser::option_t options[] = {
-    {      "--debug", 'd', 0},
-    {        "--hex", 'h', 0},
-    {"--relocatable", 'r', 0},
-    {           "-o", 'o', 1},
-    {      "--place", 'p', 1},
+    {      "--debug", 'd',         0},
+    {        "--hex", 'h',         0},
+    {"--relocatable", 'r',         0},
+    {           "-o", 'o',    "file"},
+    {      "--place", 'p', "address"},
     {0},
 };
 // clang-format on

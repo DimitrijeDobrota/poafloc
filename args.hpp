@@ -10,7 +10,7 @@ class Parser {
     struct option_t {
         const char *name;
         char key;
-        bool arg;
+        const char *arg;
     };
 
     struct argp_t {
