@@ -29,7 +29,7 @@ int parse_opt(int key, const char *arg, void *input) {
         if (arguments->hex) error("cannot mix -hex and -relocatable");
         arguments->relocatable = true;
         break;
-    case 'o': arguments->output_file = arg; break;
+    case 'o': arguments->output_file = arg ? arg : "stdout"; break;
     case 'i': arguments->input_file = arg; break;
     default: arguments->args.push_back(arg);
     }
@@ -37,13 +37,15 @@ int parse_opt(int key, const char *arg, void *input) {
     return 0;
 }
 
+using enum Parser::Option;
+
 // clang-format off
 static const Parser::option_t options[] = {
-    {            0, 'o', "file"},
-    {      "input", 'i', "file"},
-    {      "debug", 'd',      0},
-    {        "hex", 'h',      0},
-    {"relocatable", 'r',      0},
+    {     "output", 'o', "file", ARG_OPTIONAL},
+    {            0, 'i', "file",            0},
+    {      "debug", 'd',      0,            0},
+    {        "hex", 'h',      0,            0},
+    {"relocatable", 'r',      0,            0},
     {0},
 };
 // clang-format on

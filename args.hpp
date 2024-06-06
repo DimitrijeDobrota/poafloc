@@ -13,6 +13,13 @@ class Parser {
         const char *name;
         const char key;
         const char *arg;
+        const uint8_t options;
+    };
+
+    enum Option {
+        ARG_OPTIONAL = 0x1,
+        HIDDEN = 0x2,
+        ALIAS = 0x3,
     };
 
     struct argp_t {
@@ -58,11 +65,10 @@ class Parser {
 
                     const char *arg = nullptr;
                     if (option->arg) {
-                        if (opt[j + 1] == 0) {
+                        if (opt[j + 1] != 0) arg = opt + j + 1;
+                        else if ((option->options & ARG_OPTIONAL) == 0) {
                             if (i == argc) goto missing;
                             arg = argv[++i];
-                        } else {
-                            arg = opt + j + 1;
                         }
                     }
 
@@ -82,12 +88,13 @@ class Parser {
                 const auto *option = options[key - 'a'];
                 const char *arg = nullptr;
 
-                if (eq) {
-                    if (!option->arg) goto excess;
-                    arg = eq + 1;
-                } else if (option->arg) {
-                    if (i == argc) goto missing;
-                    arg = argv[++i];
+                if (!option->arg && eq) goto excess;
+                if (option->arg) {
+                    if (eq) arg = eq + 1;
+                    else if ((option->options & ARG_OPTIONAL) == 0) {
+                        if (i == argc) goto missing;
+                        arg = argv[++i];
+                    }
                 }
 
                 argp->parser(key, arg, input);
