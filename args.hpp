@@ -6,12 +6,13 @@
 #include <exception>
 #include <format>
 #include <iostream>
+#include <unordered_map>
 
 class Parser {
   public:
     struct option_t {
         const char *name;
-        const char key;
+        const int key;
         const char *arg;
         const uint8_t options;
     };
@@ -30,17 +31,41 @@ class Parser {
     };
 
     Parser(const argp_t *argp) : argp(argp) {
-        for (int i = 0; argp->options[i].key; i++) {
+        int key_last;
+        int i = 0;
+        while (true) {
             const auto &option = argp->options[i];
-            const uint8_t idx = option.key - 'a';
+            if (!option.name && !option.key) break;
 
-            if (options[idx]) {
-                std::cerr << std::format("duplicate key {}\n", option.key);
-                throw new std::runtime_error("duplicate key");
+            if (!option.key) {
+                if ((option.options & ALIAS) == 0) {
+                    std::cerr << "non alias without a key\n";
+                    throw new std::runtime_error("no key");
+                }
+
+                if (!key_last) {
+                    std::cerr << "no option to alias\n";
+                    throw new std::runtime_error("no alias");
+                }
+
+                // TODO: connect aliases in --help
+
+                trie.insert(option.name, key_last);
+            } else {
+                if (options.count(option.key)) {
+                    std::cerr << std::format("duplicate key {}\n", option.key);
+                    throw new std::runtime_error("duplicate key");
+                }
+
+                // TODO: connect aliases in --help
+
+                if (option.name) trie.insert(option.name, option.key);
+                options[option.key] = &option;
+
+                key_last = option.key;
             }
 
-            if (option.name) trie.insert(option.name, option.key);
-            options[idx] = &option;
+            i++;
         }
     }
 
@@ -60,8 +85,8 @@ class Parser {
                 for (int j = 0; opt[j]; j++) {
                     const char key = opt[j];
 
-                    const auto *option = options[key - 'a'];
-                    if (!option) goto unknown;
+                    if (!options.count(key)) goto unknown;
+                    const auto *option = options[key];
 
                     const char *arg = nullptr;
                     if (option->arg) {
@@ -80,12 +105,12 @@ class Parser {
                 const char *opt = argv[i] + 2;
                 const auto eq = std::strchr(opt, '=');
 
-                const char key =
+                const int key =
                     trie.get(!eq ? opt : std::string(opt, eq - opt));
 
                 if (!key) goto unknown;
 
-                const auto *option = options[key - 'a'];
+                const auto *option = options[key];
                 const char *arg = nullptr;
 
                 if (!option->arg && eq) goto excess;
@@ -129,7 +154,7 @@ class Parser {
             }
         }
 
-        void insert(const std::string &option, char key) {
+        void insert(const std::string &option, int key) {
             trie_t *crnt = this;
 
             for (const char c : option) {
@@ -145,7 +170,7 @@ class Parser {
             crnt->key = key;
         }
 
-        char get(const std::string &option) const {
+        int get(const std::string &option) const {
             const trie_t *crnt = this;
 
             for (const char c : option) {
@@ -161,13 +186,13 @@ class Parser {
       private:
         trie_t *children[26] = {0};
         uint8_t count = 0;
-        char key = 0;
+        int key = 0;
         bool terminal = false;
     };
 
     const argp_t *argp;
 
-    const option_t *options[26] = {0};
+    std::unordered_map<int, const option_t *> options;
     trie_t trie;
 };
 

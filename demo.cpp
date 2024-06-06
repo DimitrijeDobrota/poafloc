@@ -20,7 +20,7 @@ int parse_opt(int key, const char *arg, void *input) {
     auto arguments = (arguments_t *)input;
 
     switch (key) {
-    case 'd': arguments->debug = true; break;
+    case 777: arguments->debug = true; break;
     case 'h':
         if (arguments->relocatable) error("cannot mix -hex and -relocatable");
         arguments->hex = true;
@@ -43,8 +43,9 @@ using enum Parser::Option;
 static const Parser::option_t options[] = {
     {     "output", 'o', "file", ARG_OPTIONAL},
     {            0, 'i', "file",            0},
-    {      "debug", 'd',      0,            0},
+    {      "debug", 777,      0,            0},
     {        "hex", 'h',      0,            0},
+    {"hexadecimal",   0,      0,        ALIAS},
     {"relocatable", 'r',      0,            0},
     {0},
 };
