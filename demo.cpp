@@ -31,7 +31,8 @@ int parse_opt(int key, const char *arg, void *input) {
         break;
     case 'o': arguments->output_file = arg ? arg : "stdout"; break;
     case 'i': arguments->input_file = arg; break;
-    default: arguments->args.push_back(arg);
+    case Parser::Key::ARG: arguments->args.push_back(arg); break;
+	case Parser::Key::ERROR: std::cerr << "handled error\n";
     }
 
     return 0;

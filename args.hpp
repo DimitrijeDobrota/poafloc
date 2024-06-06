@@ -23,6 +23,15 @@ class Parser {
         ALIAS = 0x3,
     };
 
+    enum Key {
+        ARG = 0,
+        END = 0x1000001,
+        NO_ARGS = 0x1000002,
+        INIT = 0x1000003,
+        SUCCESS = 0x1000004,
+        ERROR = 0x1000005,
+    };
+
     struct argp_t {
         using parse_f = int (*)(int key, const char *arg, void *input);
 
@@ -70,11 +79,14 @@ class Parser {
     }
 
     int parse(int argc, char *argv[], void *input) {
-        int i;
+        int args = 0, i;
+
+        argp->parser(Key::INIT, 0, input);
 
         for (i = 1; i < argc; i++) {
             if (argv[i][0] != '-') {
-                argp->parser(-1, argv[i], input);
+                argp->parser(Key::ARG, argv[i], input);
+                args++;
                 continue;
             }
 
@@ -127,21 +139,30 @@ class Parser {
         }
 
         for (i = i + 1; i < argc; i++) {
-            argp->parser(-1, argv[i], input);
+            argp->parser(Key::ARG, argv[i], input);
+            args++;
         }
+
+        if (!args) argp->parser(Key::NO_ARGS, 0, input);
+
+        argp->parser(Key::END, 0, input);
+        argp->parser(Key::SUCCESS, 0, input);
 
         return 0;
 
     unknown:
         std::cerr << std::format("unknown option {}\n", argv[i]);
+        argp->parser(Key::ERROR, 0, input);
         return 1;
 
     missing:
         std::cerr << std::format("option {} missing a value\n", argv[i]);
+        argp->parser(Key::ERROR, 0, input);
         return 2;
 
     excess:
         std::cerr << std::format("option {} don't require a value\n", argv[i]);
+        argp->parser(Key::ERROR, 0, input);
         return 3;
     }
 
