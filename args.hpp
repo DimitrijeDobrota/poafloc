@@ -37,8 +37,6 @@ class Parser {
     }
 
     int parse(int argc, char *argv[], void *input) {
-        const char *arg = nullptr;
-        char key;
         int i;
 
         for (i = 1; i < argc; i++) {
@@ -49,24 +47,37 @@ class Parser {
 
             if (argv[i][1] != '-') {
                 const char *opt = argv[i] + 1;
-                key = opt[0];
+                for (int j = 0; opt[j]; j++) {
+                    const char key = opt[j];
 
-                const auto *option = options[key - 'a'];
-                if (!option) goto unknown;
+                    const auto *option = options[key - 'a'];
+                    if (!option) goto unknown;
 
-                if (option->arg) {
-                    if (i == argc) goto missing;
-                    arg = argv[++i];
+                    const char *arg = nullptr;
+                    if (option->arg) {
+                        if (opt[j + 1] == 0) {
+                            if (i == argc) goto missing;
+                            arg = argv[++i];
+                        } else {
+                            arg = opt + j + 1;
+                        }
+                    }
+
+                    argp->parser(key, arg, input);
+
+                    if (arg) break;
                 }
             } else {
                 const char *opt = argv[i] + 2;
                 const auto eq = std::strchr(opt, '=');
 
-                key = trie.get(!eq ? opt : std::string(opt, eq - opt));
+                const char key =
+                    trie.get(!eq ? opt : std::string(opt, eq - opt));
 
                 if (!key) goto unknown;
 
                 const auto *option = options[key - 'a'];
+                const char *arg = nullptr;
 
                 if (eq) {
                     if (!option->arg) goto excess;
@@ -75,9 +86,9 @@ class Parser {
                     if (i == argc) goto missing;
                     arg = argv[++i];
                 }
-            }
 
-            argp->parser(key, arg, input);
+                argp->parser(key, arg, input);
+            }
         }
 
         return 0;
@@ -108,8 +119,8 @@ class Parser {
             trie_t *crnt = this;
 
             for (const char c : option) {
-                crnt->count++;
                 if (!crnt->terminal) crnt->key = key;
+                crnt->count++;
 
                 const uint8_t idx = c - 'a';
                 if (!crnt->children[idx]) crnt->children[idx] = new trie_t();
