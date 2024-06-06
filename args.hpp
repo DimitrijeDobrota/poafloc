@@ -26,13 +26,14 @@ class Parser {
         for (int i = 0; argp->options[i].key; i++) {
             const auto &option = argp->options[i];
             const uint8_t idx = option.key - 'a';
+
             if (options[idx]) {
                 std::cerr << std::format("duplicate key {}\n", option.key);
                 throw new std::runtime_error("duplicate key");
             }
 
-            options[idx] = &option;
             if (option.name) trie.insert(option.name, option.key);
+            options[idx] = &option;
         }
     }
 
@@ -44,6 +45,8 @@ class Parser {
                 argp->parser(-1, argv[i], input);
                 continue;
             }
+
+            if (!std::strcmp(argv[i], "--")) break;
 
             if (argv[i][1] != '-') {
                 const char *opt = argv[i] + 1;
@@ -89,6 +92,10 @@ class Parser {
 
                 argp->parser(key, arg, input);
             }
+        }
+
+        for (i = i + 1; i < argc; i++) {
+            argp->parser(-1, argv[i], input);
         }
 
         return 0;
