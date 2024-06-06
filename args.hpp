@@ -1,7 +1,9 @@
 #ifndef ARGS_HPP
 #define ARGS_HPP
 
+#include <cstdint>
 #include <cstring>
+#include <exception>
 #include <format>
 #include <iostream>
 
@@ -20,70 +22,128 @@ class Parser {
         const parse_f parser;
     };
 
-    static int parse(argp_t *argp, int argc, char *argv[], void *input) {
-        for (int i = 1; i < argc; i++) {
-            bool opt_short = false, opt_long = false;
+    Parser(const argp_t *argp) : argp(argp) {
+        for (int i = 0; argp->options[i].key; i++) {
+            const auto &option = argp->options[i];
+            const uint8_t idx = option.key - 'a';
+            if (options[idx]) {
+                std::cerr << std::format("duplicate key {}\n", option.key);
+                throw new std::runtime_error("duplicate key");
+            }
 
+            options[idx] = &option;
+            if (option.name) trie.insert(option.name, option.key);
+        }
+    }
+
+    int parse(int argc, char *argv[], void *input) {
+        const char *arg = nullptr;
+        char key;
+        int i;
+
+        for (i = 1; i < argc; i++) {
             if (argv[i][0] != '-') {
                 argp->parser(-1, argv[i], input);
                 continue;
             }
 
-            if (argv[i][1] != '-') opt_short = true;
-            else opt_long = true;
+            if (argv[i][1] != '-') {
+                const char *opt = argv[i] + 1;
+                key = opt[0];
 
-            const char *opt = argv[i] + opt_long + 1;
+                const auto *option = options[key - 'a'];
+                if (!option) goto unknown;
 
-            bool found = false;
-            for (int j = 0; argp->options[j].key; j++) {
-                const auto &option = argp->options[j];
-                const char *arg = 0;
-
-                if (opt_short && opt[0] != option.key) continue;
-
-                if (opt_long) {
-                    if(!option.name) continue;
-
-                    const auto n = std::strlen(option.name);
-                    if (std::strncmp(argv[i] + 2, option.name, n)) continue;
-
-                    if (opt[n] == '=') {
-                        if (!option.arg) {
-                            std::cerr << "option doesn't require a value\n";
-                            exit(1);
-                        }
-
-                        arg = opt + n + 1;
-                    }
-                }
-
-                if (option.arg && !arg) {
-                    if (i == argc) {
-                        std::cerr << "option missing a value\n";
-                        exit(1);
-                    }
-
+                if (option->arg) {
+                    if (i == argc) goto missing;
                     arg = argv[++i];
                 }
+            } else {
+                const char *opt = argv[i] + 2;
+                const auto eq = std::strchr(opt, '=');
 
-                argp->parser(option.key, arg, input);
+                key = trie.get(!eq ? opt : std::string(opt, eq - opt));
 
-                found = true;
-                break;
+                if (!key) goto unknown;
+
+                const auto *option = options[key - 'a'];
+
+                if (eq) {
+                    if (!option->arg) goto excess;
+                    arg = eq + 1;
+                } else if (option->arg) {
+                    if (i == argc) goto missing;
+                    arg = argv[++i];
+                }
             }
 
-            if (found) continue;
-
-            if (argv[i][0] == '-') {
-                std::cerr << std::format("unknown option {}\n", argv[i]);
-                return 1;
-            }
+            argp->parser(key, arg, input);
         }
 
         return 0;
+
+    unknown:
+        std::cerr << std::format("unknown option {}\n", argv[i]);
+        return 1;
+
+    missing:
+        std::cerr << std::format("option {} missing a value\n", argv[i]);
+        return 2;
+
+    excess:
+        std::cerr << std::format("option {} don't require a value\n", argv[i]);
+        return 3;
     }
 
   private:
+    class trie_t {
+      public:
+        ~trie_t() noexcept {
+            for (uint8_t i = 0; i < 26; i++) {
+                delete children[i];
+            }
+        }
+
+        void insert(const std::string &option, char key) {
+            trie_t *crnt = this;
+
+            for (const char c : option) {
+                crnt->count++;
+                if (!crnt->terminal) crnt->key = key;
+
+                const uint8_t idx = c - 'a';
+                if (!crnt->children[idx]) crnt->children[idx] = new trie_t();
+                crnt = crnt->children[idx];
+            }
+
+            crnt->terminal = true;
+            crnt->key = key;
+        }
+
+        char get(const std::string &option) const {
+            const trie_t *crnt = this;
+
+            for (const char c : option) {
+                const uint8_t idx = c - 'a';
+                if (!crnt->children[idx]) return 0;
+                crnt = crnt->children[idx];
+            }
+
+            if (!crnt->terminal && crnt->count > 1) return 0;
+            return crnt->key;
+        }
+
+      private:
+        trie_t *children[26] = {0};
+        uint8_t count = 0;
+        char key = 0;
+        bool terminal = false;
+    };
+
+    const argp_t *argp;
+
+    const option_t *options[26] = {0};
+    trie_t trie;
 };
 
 #endif

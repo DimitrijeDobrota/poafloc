@@ -3,13 +3,11 @@
 #include <cstdint>
 #include <vector>
 
-void error(const std::string &message) {
-    std::cerr << message << std::endl;
-    exit(1);
-}
+void error(const std::string &message) { std::cerr << message << std::endl; }
 
 struct arguments_t {
     const char *output_file = 0;
+    const char *input_file = 0;
 
     bool debug = 0;
     bool hex = 0;
@@ -32,6 +30,7 @@ int parse_opt(int key, const char *arg, void *input) {
         arguments->relocatable = true;
         break;
     case 'o': arguments->output_file = arg; break;
+    case 'i': arguments->input_file = arg; break;
     default: arguments->args.push_back(arg);
     }
 
@@ -41,6 +40,7 @@ int parse_opt(int key, const char *arg, void *input) {
 // clang-format off
 static const Parser::option_t options[] = {
     {            0, 'o', "file"},
+    {      "input", 'i', "file"},
     {      "debug", 'd',      0},
     {        "hex", 'h',      0},
     {"relocatable", 'r',      0},
@@ -50,14 +50,18 @@ static const Parser::option_t options[] = {
 
 int main(int argc, char *argv[]) {
     Parser::argp_t argp = {options, parse_opt};
+    Parser parser(&argp);
+
     arguments_t arguments;
 
-    if (Parser::parse(&argp, argc, argv, &arguments)) {
+    if (parser.parse(argc, argv, &arguments)) {
         error("There was an error while parsing arguments");
+        return 1;
     }
 
     std::cout << "Command line options: " << std::endl;
 
+    std::cout << "\t       input: " << arguments.input_file << std::endl;
     std::cout << "\t      output: " << arguments.output_file << std::endl;
     std::cout << "\t         hex: " << arguments.hex << std::endl;
     std::cout << "\t       debug: " << arguments.debug << std::endl;
