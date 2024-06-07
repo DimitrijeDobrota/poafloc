@@ -4,7 +4,6 @@
 #include <vector>
 
 void error(const std::string &message) { std::cerr << message << std::endl; }
-
 struct arguments_t {
     const char *output_file = "";
     const char *input_file = "";
@@ -42,18 +41,18 @@ using enum Parser::Option;
 
 // clang-format off
 static const Parser::option_t options[] = {
-    {     "output", 'o', "file", ARG_OPTIONAL},
-    {            0, 'i', "file",            0},
-    {      "debug", 777,      0,            0},
-    {        "hex", 'h',      0,            0},
+    {     "output", 'o', "file", ARG_OPTIONAL, "Output file, default stdout"},
+    {            0, 'i', "file",            0, "Input file"},
+    {      "debug", 777,      0,            0, "Execute program in debugging mode"},
+    {        "hex", 'h',      0,            0, "Output in hex format"},
     {"hexadecimal",   0,      0,        ALIAS},
-    {"relocatable", 'r',      0,            0},
+    {"relocatable", 'r',      0,            0, "Output in relocatable format"},
     {0},
 };
 // clang-format on
 
 int main(int argc, char *argv[]) {
-    Parser::argp_t argp = {options, parse_opt};
+    Parser::argp_t argp = {options, parse_opt, "doc string"};
     Parser parser(&argp);
 
     arguments_t arguments;

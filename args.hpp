@@ -1,12 +1,14 @@
 #ifndef ARGS_HPP
 #define ARGS_HPP
 
+#include <algorithm>
 #include <cstdint>
 #include <cstring>
 #include <exception>
 #include <format>
 #include <iostream>
 #include <unordered_map>
+#include <vector>
 
 class Parser {
   public:
@@ -15,12 +17,13 @@ class Parser {
         const int key;
         const char *arg;
         const uint8_t options;
+        const char *message;
     };
 
     enum Option {
         ARG_OPTIONAL = 0x1,
         HIDDEN = 0x2,
-        ALIAS = 0x3,
+        ALIAS = 0x4,
     };
 
     enum Key {
@@ -37,17 +40,19 @@ class Parser {
 
         const option_t *options;
         const parse_f parser;
+        const char *doc;
     };
 
-    Parser(const argp_t *argp) : argp(argp) {
+    Parser(argp_t *argp) : argp(argp) {
         int key_last;
         int i = 0;
-        while (true) {
-            const auto &option = argp->options[i];
-            if (!option.name && !option.key) break;
 
-            if (!option.key) {
-                if ((option.options & ALIAS) == 0) {
+        while (true) {
+            const auto &opt = argp->options[i];
+            if (!opt.name && !opt.key) break;
+
+            if (!opt.key) {
+                if ((opt.options & ALIAS) == 0) {
                     std::cerr << "non alias without a key\n";
                     throw new std::runtime_error("no key");
                 }
@@ -57,25 +62,43 @@ class Parser {
                     throw new std::runtime_error("no alias");
                 }
 
-                // TODO: connect aliases in --help
-
-                trie.insert(option.name, key_last);
+                trie.insert(opt.name, key_last);
+                help_entries.back().push(opt.name);
             } else {
-                if (options.count(option.key)) {
-                    std::cerr << std::format("duplicate key {}\n", option.key);
+                if (options.count(opt.key)) {
+                    std::cerr << std::format("duplicate key {}\n", opt.key);
                     throw new std::runtime_error("duplicate key");
                 }
 
-                // TODO: connect aliases in --help
+                if (opt.name) trie.insert(opt.name, opt.key);
+                options[key_last = opt.key] = &opt;
 
-                if (option.name) trie.insert(option.name, option.key);
-                options[option.key] = &option;
+                if ((opt.options & ALIAS) == 0) {
+                    help_entries.emplace_back(opt.arg, opt.message);
 
-                key_last = option.key;
+                    if (std::isprint(opt.key))
+                        help_entries.back().push(opt.key);
+                    if (opt.name) help_entries.back().push(opt.name);
+                } else {
+                    if (!key_last) {
+                        std::cerr << "no option to alias\n";
+                        throw new std::runtime_error("no alias");
+                    }
+
+                    if (std::isprint(opt.key))
+                        help_entries.back().push(opt.key);
+                    if (opt.name) help_entries.back().push(opt.name);
+                }
             }
 
             i++;
         }
+
+        std::sort(begin(help_entries), end(help_entries));
+
+        help_entries.emplace_back(nullptr, "Give this help list");
+        help_entries.back().push("help");
+        help_entries.back().push('?');
     }
 
     int parse(int argc, char *argv[], void *input) {
@@ -99,6 +122,8 @@ class Parser {
                 // loop over ganged options
                 for (int j = 0; opt[j]; j++) {
                     const char key = opt[j];
+
+                    if (key == '?') help(argv[0]);
 
                     if (!options.count(key)) goto unknown;
                     const auto *option = options[key];
@@ -124,8 +149,14 @@ class Parser {
                 const char *opt = argv[i] + 2;
                 const auto eq = std::strchr(opt, '=');
 
-                const int key =
-                    trie.get(!eq ? opt : std::string(opt, eq - opt));
+                std::string opt_s = !eq ? opt : std::string(opt, eq - opt);
+
+                if (opt_s == "help") {
+                    if (eq) goto excess;
+                    help(argv[0]);
+                }
+
+                const int key = trie.get(opt_s);
 
                 if (!key) goto unknown;
 
@@ -148,7 +179,7 @@ class Parser {
             }
         }
 
-		// parse rest argv as normal arguments
+        // parse rest argv as normal arguments
         for (i = i + 1; i < argc; i++) {
             argp->parser(Key::ARG, argv[i], input);
             args++;
@@ -222,9 +253,90 @@ class Parser {
         bool terminal = false;
     };
 
+    class help_entry_t {
+      public:
+        help_entry_t(const char *arg, const char *message)
+            : m_arg(arg), m_message(message) {}
+
+        void push(char sh) { m_opt_short.push_back(sh); }
+        void push(const char *lg) { m_opt_long.push_back(lg); }
+
+        const auto arg() const { return m_arg; }
+        const auto message() const { return m_message; }
+        const auto &opt_short() const { return m_opt_short; }
+        const auto &opt_long() const { return m_opt_long; }
+
+        bool operator<(const help_entry_t &rhs) const {
+            if (m_opt_long.empty() && rhs.m_opt_long.empty())
+                return m_opt_short.front() < rhs.m_opt_short.front();
+
+            if (m_opt_long.empty())
+                return m_opt_short.front() <= rhs.m_opt_long.front()[0];
+
+            if (rhs.m_opt_long.empty())
+                return m_opt_long.front()[0] <= rhs.m_opt_short.front();
+
+            return std::strcmp(m_opt_long.front(), rhs.m_opt_long.front()) < 0;
+        }
+
+      private:
+        const char *m_arg = nullptr;
+        const char *m_message = nullptr;
+
+        std::vector<char> m_opt_short;
+        std::vector<const char *> m_opt_long;
+    };
+
+    void help(const char *name) {
+        std::cout << std::format("Usage: {} [OPTIONS...] {}\n\n", name,
+                                 argp->doc ? argp->doc : "");
+
+        for (const auto &entry : help_entries) {
+            std::size_t count = 0;
+            bool prev = false;
+
+            std::cout << "  ";
+            for (const char c : entry.opt_short()) {
+                if (!prev) prev = true;
+                else
+                    std::cout << ", ", count += 2;
+
+                const std::string message = std::format("-{}", c);
+
+                std::cout << message;
+                count += size(message);
+            }
+
+            if (!prev) std::cout << "    ", count += 4;
+
+            for (const auto l : entry.opt_long()) {
+                if (!prev) prev = true;
+                else
+                    std::cout << ", ", count += 2;
+
+                std::string message = std::format("--{}", l);
+                if (entry.arg()) message += std::format("[={}]", entry.arg());
+
+                std::cout << message;
+                count += size(message);
+            }
+
+            static const std::size_t limit = 30;
+            if (count < limit) std::cout << std::string(limit - count, ' ');
+
+            if (entry.message()) {
+                std::cout << std::format("   {}", entry.message());
+            }
+            std::cout << std::endl;
+        }
+
+        exit(0);
+    }
+
     const argp_t *argp;
 
     std::unordered_map<int, const option_t *> options;
+    std::vector<help_entry_t> help_entries;
     trie_t trie;
 };
 
