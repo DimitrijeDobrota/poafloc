@@ -31,7 +31,7 @@ int parse_opt(int key, const char *arg, void *input) {
     case 'o': arguments->output_file = arg ? arg : "stdout"; break;
     case 'i': arguments->input_file = arg; break;
     case Parser::Key::ARG: arguments->args.push_back(arg); break;
-	case Parser::Key::ERROR: std::cerr << "handled error\n";
+    case Parser::Key::ERROR: std::cerr << "handled error\n";
     }
 
     return 0;
@@ -42,7 +42,7 @@ using enum Parser::Option;
 // clang-format off
 static const Parser::option_t options[] = {
     {     "output", 'o', "file", ARG_OPTIONAL, "Output file, default stdout"},
-    {            0, 'i', "file",            0, "Input file"},
+    {            0, 'i', "file",            0, "Input    file"},
     {      "debug", 777,      0,            0, "Execute program in debugging mode"},
     {        "hex", 'h',      0,            0, "Output in hex format"},
     {"hexadecimal",   0,      0,        ALIAS},

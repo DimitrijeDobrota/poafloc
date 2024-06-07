@@ -7,6 +7,7 @@
 #include <exception>
 #include <format>
 #include <iostream>
+#include <sstream>
 #include <unordered_map>
 #include <vector>
 
@@ -76,18 +77,20 @@ class Parser {
                 if ((opt.options & ALIAS) == 0) {
                     help_entries.emplace_back(opt.arg, opt.message);
 
-                    if (std::isprint(opt.key))
-                        help_entries.back().push(opt.key);
                     if (opt.name) help_entries.back().push(opt.name);
+                    if (std::isprint(opt.key)) {
+                        help_entries.back().push(opt.key);
+                    }
                 } else {
                     if (!key_last) {
                         std::cerr << "no option to alias\n";
                         throw new std::runtime_error("no alias");
                     }
 
-                    if (std::isprint(opt.key))
-                        help_entries.back().push(opt.key);
                     if (opt.name) help_entries.back().push(opt.name);
+                    if (std::isprint(opt.key)) {
+                        help_entries.back().push(opt.key);
+                    }
                 }
             }
 
@@ -325,7 +328,19 @@ class Parser {
             if (count < limit) std::cout << std::string(limit - count, ' ');
 
             if (entry.message()) {
-                std::cout << std::format("   {}", entry.message());
+                std::istringstream iss(entry.message());
+                std::size_t count = 0;
+                std::string s;
+
+                std::cout << "   ";
+                while (iss >> s) {
+                    count += size(s);
+                    if (count > limit) {
+                        std::cout << std::endl << std::string(limit + 5, ' ');
+                        count = size(s);
+                    }
+                    std::cout << s << " ";
+                }
             }
             std::cout << std::endl;
         }
