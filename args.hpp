@@ -90,10 +90,13 @@ class Parser {
                 continue;
             }
 
+            // stop parsing options, rest are normal arguments
             if (!std::strcmp(argv[i], "--")) break;
 
-            if (argv[i][1] != '-') {
+            if (argv[i][1] != '-') { // short option
                 const char *opt = argv[i] + 1;
+
+                // loop over ganged options
                 for (int j = 0; opt[j]; j++) {
                     const char key = opt[j];
 
@@ -102,8 +105,11 @@ class Parser {
 
                     const char *arg = nullptr;
                     if (option->arg) {
-                        if (opt[j + 1] != 0) arg = opt + j + 1;
-                        else if ((option->options & ARG_OPTIONAL) == 0) {
+                        if (opt[j + 1] != 0) {
+                            // rest of the line is option argument
+                            arg = opt + j + 1;
+                        } else if ((option->options & ARG_OPTIONAL) == 0) {
+                            // next argv is option argument
                             if (i == argc) goto missing;
                             arg = argv[++i];
                         }
@@ -111,9 +117,10 @@ class Parser {
 
                     argp->parser(key, arg, input);
 
+                    // if last option required argument we are done
                     if (arg) break;
                 }
-            } else {
+            } else { // long option
                 const char *opt = argv[i] + 2;
                 const auto eq = std::strchr(opt, '=');
 
@@ -127,8 +134,11 @@ class Parser {
 
                 if (!option->arg && eq) goto excess;
                 if (option->arg) {
-                    if (eq) arg = eq + 1;
-                    else if ((option->options & ARG_OPTIONAL) == 0) {
+                    if (eq) {
+                        // everything after = is option argument
+                        arg = eq + 1;
+                    } else if ((option->options & ARG_OPTIONAL) == 0) {
+                        // next argv is option argument
                         if (i == argc) goto missing;
                         arg = argv[++i];
                     }
@@ -138,6 +148,7 @@ class Parser {
             }
         }
 
+		// parse rest argv as normal arguments
         for (i = i + 1; i < argc; i++) {
             argp->parser(Key::ARG, argv[i], input);
             args++;
