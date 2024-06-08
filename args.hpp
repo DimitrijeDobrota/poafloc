@@ -17,7 +17,7 @@ class Parser {
         const char *name;
         const int key;
         const char *arg;
-        const uint8_t options;
+        const uint8_t flags;
         const char *message;
         const int group;
     };
@@ -41,7 +41,7 @@ class Parser {
         using parse_f = int (*)(int key, const char *arg, Parser *parser);
 
         const option_t *options;
-        const parse_f parser;
+        const parse_f parse;
         const char *doc;
         const char *message;
     };
@@ -55,8 +55,8 @@ class Parser {
 
   private:
     Parser(void *input, argp_t *argp) : input(input), argp(argp) {
-        bool hidden = false;
         int group = 0, key_last = 0;
+        bool hidden = false;
 
         for (int i = 0; true; i++) {
             const auto &opt = argp->options[i];
@@ -69,7 +69,7 @@ class Parser {
             }
 
             if (!opt.key) {
-                if ((opt.options & ALIAS) == 0) {
+                if ((opt.flags & ALIAS) == 0) {
                     std::cerr << "non alias without a key\n";
                     throw new std::runtime_error("no key");
                 }
@@ -82,7 +82,7 @@ class Parser {
                 trie.insert(opt.name, key_last);
 
                 if (hidden) continue;
-                if (opt.options & Option::HIDDEN) continue;
+                if (opt.flags & Option::HIDDEN) continue;
 
                 help_entries.back().push(opt.name);
             } else {
@@ -94,10 +94,10 @@ class Parser {
                 if (opt.name) trie.insert(opt.name, opt.key);
                 options[key_last = opt.key] = &opt;
 
-                bool arg_opt = opt.options & Option::ARG_OPTIONAL;
+                bool arg_opt = opt.flags & Option::ARG_OPTIONAL;
 
-                if ((opt.options & ALIAS) == 0) {
-                    if ((hidden = opt.options & Option::HIDDEN)) continue;
+                if ((opt.flags & ALIAS) == 0) {
+                    if ((hidden = opt.flags & Option::HIDDEN)) continue;
 
                     help_entries.emplace_back(opt.arg, opt.message, group,
                                               arg_opt);
@@ -113,7 +113,7 @@ class Parser {
                     }
 
                     if (hidden) continue;
-                    if (opt.options & Option::HIDDEN) continue;
+                    if (opt.flags & Option::HIDDEN) continue;
 
                     if (opt.name) help_entries.back().push(opt.name);
                     if (std::isprint(opt.key)) {
@@ -123,24 +123,24 @@ class Parser {
             }
         }
 
-        std::sort(begin(help_entries), end(help_entries));
-
         help_entries.emplace_back(nullptr, "Give this help list", -1);
         help_entries.back().push("help");
         help_entries.back().push('?');
 
         help_entries.emplace_back(nullptr, "Give a short usage message", -1);
         help_entries.back().push("usage");
+
+        std::sort(begin(help_entries), end(help_entries));
     }
 
     int parse(int argc, char *argv[], void *input) {
         int args = 0, i;
 
-        argp->parser(Key::INIT, 0, this);
+        argp->parse(Key::INIT, 0, this);
 
         for (i = 1; i < argc; i++) {
             if (argv[i][0] != '-') {
-                argp->parser(Key::ARG, argv[i], this);
+                argp->parse(Key::ARG, argv[i], this);
                 args++;
                 continue;
             }
@@ -165,14 +165,14 @@ class Parser {
                         if (opt[j + 1] != 0) {
                             // rest of the line is option argument
                             arg = opt + j + 1;
-                        } else if ((option->options & ARG_OPTIONAL) == 0) {
+                        } else if ((option->flags & ARG_OPTIONAL) == 0) {
                             // next argv is option argument
                             if (i == argc) goto missing;
                             arg = argv[++i];
                         }
                     }
 
-                    argp->parser(key, arg, this);
+                    argp->parse(key, arg, this);
 
                     // if last option required argument we are done
                     if (arg) break;
@@ -205,89 +205,45 @@ class Parser {
                     if (eq) {
                         // everything after = is option argument
                         arg = eq + 1;
-                    } else if ((option->options & ARG_OPTIONAL) == 0) {
+                    } else if ((option->flags & ARG_OPTIONAL) == 0) {
                         // next argv is option argument
                         if (i == argc) goto missing;
                         arg = argv[++i];
                     }
                 }
 
-                argp->parser(key, arg, this);
+                argp->parse(key, arg, this);
             }
         }
 
         // parse rest argv as normal arguments
         for (i = i + 1; i < argc; i++) {
-            argp->parser(Key::ARG, argv[i], this);
+            argp->parse(Key::ARG, argv[i], this);
             args++;
         }
 
-        if (!args) argp->parser(Key::NO_ARGS, 0, this);
+        if (!args) argp->parse(Key::NO_ARGS, 0, this);
 
-        argp->parser(Key::END, 0, this);
-        argp->parser(Key::SUCCESS, 0, this);
+        argp->parse(Key::END, 0, this);
+        argp->parse(Key::SUCCESS, 0, this);
 
         return 0;
 
     unknown:
         std::cerr << std::format("unknown option {}\n", argv[i]);
-        argp->parser(Key::ERROR, 0, this);
+        argp->parse(Key::ERROR, 0, this);
         return 1;
 
     missing:
         std::cerr << std::format("option {} missing a value\n", argv[i]);
-        argp->parser(Key::ERROR, 0, this);
+        argp->parse(Key::ERROR, 0, this);
         return 2;
 
     excess:
         std::cerr << std::format("option {} don't require a value\n", argv[i]);
-        argp->parser(Key::ERROR, 0, this);
+        argp->parse(Key::ERROR, 0, this);
         return 3;
     }
-
-    class trie_t {
-      public:
-        ~trie_t() noexcept {
-            for (uint8_t i = 0; i < 26; i++) {
-                delete children[i];
-            }
-        }
-
-        void insert(const std::string &option, int key) {
-            trie_t *crnt = this;
-
-            for (const char c : option) {
-                if (!crnt->terminal) crnt->key = key;
-                crnt->count++;
-
-                const uint8_t idx = c - 'a';
-                if (!crnt->children[idx]) crnt->children[idx] = new trie_t();
-                crnt = crnt->children[idx];
-            }
-
-            crnt->terminal = true;
-            crnt->key = key;
-        }
-
-        int get(const std::string &option) const {
-            const trie_t *crnt = this;
-
-            for (const char c : option) {
-                const uint8_t idx = c - 'a';
-                if (!crnt->children[idx]) return 0;
-                crnt = crnt->children[idx];
-            }
-
-            if (!crnt->terminal && crnt->count > 1) return 0;
-            return crnt->key;
-        }
-
-      private:
-        trie_t *children[26] = {0};
-        uint8_t count = 0;
-        int key = 0;
-        bool terminal = false;
-    };
 
     struct help_entry_t {
         std::vector<const char *> opt_long;
@@ -482,6 +438,50 @@ class Parser {
 
         exit(0);
     }
+
+    class trie_t {
+      public:
+        ~trie_t() noexcept {
+            for (uint8_t i = 0; i < 26; i++) {
+                delete children[i];
+            }
+        }
+
+        void insert(const std::string &option, int key) {
+            trie_t *crnt = this;
+
+            for (const char c : option) {
+                if (!crnt->terminal) crnt->key = key;
+                crnt->count++;
+
+                const uint8_t idx = c - 'a';
+                if (!crnt->children[idx]) crnt->children[idx] = new trie_t();
+                crnt = crnt->children[idx];
+            }
+
+            crnt->terminal = true;
+            crnt->key = key;
+        }
+
+        int get(const std::string &option) const {
+            const trie_t *crnt = this;
+
+            for (const char c : option) {
+                const uint8_t idx = c - 'a';
+                if (!crnt->children[idx]) return 0;
+                crnt = crnt->children[idx];
+            }
+
+            if (!crnt->terminal && crnt->count > 1) return 0;
+            return crnt->key;
+        }
+
+      private:
+        trie_t *children[26] = {0};
+        uint8_t count = 0;
+        int key = 0;
+        bool terminal = false;
+    };
 
     const argp_t *argp;
 
