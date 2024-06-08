@@ -302,9 +302,25 @@ class Parser {
         }
     };
 
+    void print_usage(const char *name) const {
+        if (argp->doc) {
+            std::istringstream iss(argp->doc);
+            std::string s;
+
+            std::getline(iss, s, '\n');
+            std::cout << " " << s;
+
+            while (std::getline(iss, s, '\n')) {
+                std::cout << std::format("\n   or: {} [OPTIONS...] {}", name,
+                                         s);
+            }
+        }
+    }
+
     void help(const char *name) const {
-        std::cout << std::format("Usage: {} [OPTIONS...] {}\n\n", name,
-                                 argp->doc ? argp->doc : "");
+        std::cout << std::format("Usage: {} [OPTIONS...]", name);
+        print_usage(name);
+        std::cout << "\n\n";
 
         for (const auto &entry : help_entries) {
             bool prev = false;
@@ -414,7 +430,7 @@ class Parser {
             }
         }
 
-        if (argp->doc) print(argp->doc);
+        print_usage(name);
         std::cout << std::endl;
 
         exit(0);
