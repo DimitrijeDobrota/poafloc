@@ -19,6 +19,7 @@ class Parser {
         const char *arg;
         const uint8_t options;
         const char *message;
+        const int group;
     };
 
     enum Option {
@@ -47,11 +48,17 @@ class Parser {
 
     Parser(argp_t *argp) : argp(argp) {
         bool hidden = false;
-        int key_last = 0;
+        int group = 0, key_last = 0;
 
         for (int i = 0; true; i++) {
             const auto &opt = argp->options[i];
-            if (!opt.name && !opt.key) break;
+            if (!opt.name && !opt.key && !opt.message) break;
+
+            if (!opt.name && !opt.key) {
+                group = opt.group ? opt.group : group + 1;
+                help_entries.emplace_back(nullptr, opt.message, group);
+                continue;
+            }
 
             if (!opt.key) {
                 if ((opt.options & ALIAS) == 0) {
@@ -84,7 +91,8 @@ class Parser {
                 if ((opt.options & ALIAS) == 0) {
                     if ((hidden = opt.options & Option::HIDDEN)) continue;
 
-                    help_entries.emplace_back(opt.arg, opt.message, arg_opt);
+                    help_entries.emplace_back(opt.arg, opt.message, group,
+                                              arg_opt);
 
                     if (opt.name) help_entries.back().push(opt.name);
                     if (std::isprint(opt.key)) {
@@ -109,12 +117,11 @@ class Parser {
 
         std::sort(begin(help_entries), end(help_entries));
 
-        help_entries.emplace_back(nullptr, "Give this help list", false);
+        help_entries.emplace_back(nullptr, "Give this help list", -1);
         help_entries.back().push("help");
         help_entries.back().push('?');
 
-        help_entries.emplace_back(nullptr, "Give a short usage message",
-                                  false);
+        help_entries.emplace_back(nullptr, "Give a short usage message", -1);
         help_entries.back().push("usage");
     }
 
@@ -281,15 +288,25 @@ class Parser {
 
         const char *arg;
         const char *message;
+        int group;
         bool opt;
 
-        help_entry_t(const char *arg, const char *message, bool opt)
-            : arg(arg), message(message), opt(opt) {}
+        help_entry_t(const char *arg, const char *message, int group,
+                     bool opt = false)
+            : arg(arg), message(message), group(group), opt(opt) {}
 
         void push(char sh) { opt_short.push_back(sh); }
         void push(const char *lg) { opt_long.push_back(lg); }
 
         bool operator<(const help_entry_t &rhs) const {
+            if (group && rhs.group) {
+                if (group < 0 && rhs.group < 0) return group < rhs.group;
+                if (group < 0 || rhs.group < 0) return rhs.group < 0;
+                return group < rhs.group;
+            }
+
+            if (group || rhs.group) return !group;
+
             if (opt_long.empty() && rhs.opt_long.empty())
                 return opt_short.front() < rhs.opt_short.front();
 
@@ -331,8 +348,17 @@ class Parser {
         if (!m1.empty()) std::cout << "\n" << m1;
         std::cout << "\n\n";
 
+        bool first = true;
         for (const auto &entry : help_entries) {
             bool prev = false;
+
+            if (entry.opt_short.empty() && entry.opt_long.empty()) {
+                if (!first) std::cout << "\n";
+                if (entry.message) std::cout << " " << entry.message << ":\n";
+                continue;
+            }
+
+            first = false;
 
             std::string message = "  ";
             for (const char c : entry.opt_short) {

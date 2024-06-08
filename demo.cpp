@@ -41,12 +41,17 @@ using enum Parser::Option;
 
 // clang-format off
 static const Parser::option_t options[] = {
-    {     "output", 'o', "file",    ARG_OPTIONAL, "Output file, default stdout"},
-    {            0, 'i', "file",               0, "Input    file"},
-    {      "debug", 777,      0,               0, "Execute program in debugging mode"},
-    {        "hex", 'h',      0,               0, "Output in hex format"},
+    {           0,  'R',      0,               0,        "random 0-group option"},
+    {           0,    0,      0,               0,                 "Program mode", 1},
+    {        "hex", 'h',      0,               0,         "Output in hex format"},
     {"hexadecimal",   0,      0, ALIAS | HIDDEN},
     {"relocatable", 'r',      0,               0, "Output in relocatable format"},
+    {            0,   0,      0,               0,               "For developers", 4},
+    {      "debug", 777,      0,               0,        "Enable debugging mode"},
+    {            0,   0,      0,               0,                 "Input/output", 3},
+    {     "output", 'o', "file",    ARG_OPTIONAL,  "Output file, default stdout"},
+    {            0, 'i', "file",               0,                  "Input  file"},
+    {            0,   0,      0,               0,        "Informational Options", -1},
     {0},
 };
 // clang-format on
