@@ -38,7 +38,7 @@ class Parser {
     };
 
     struct argp_t {
-        using parse_f = int (*)(int key, const char *arg, void *input);
+        using parse_f = int (*)(int key, const char *arg, Parser *parser);
 
         const option_t *options;
         const parse_f parser;
@@ -46,7 +46,15 @@ class Parser {
         const char *message;
     };
 
-    Parser(argp_t *argp) : argp(argp) {
+    static int parse(argp_t *argp, int argc, char *argv[], void *input) {
+        Parser parser(input, argp);
+        return parser.parse(argc, argv, &parser);
+    }
+
+    void *input;
+
+  private:
+    Parser(void *input, argp_t *argp) : input(input), argp(argp) {
         bool hidden = false;
         int group = 0, key_last = 0;
 
@@ -128,11 +136,11 @@ class Parser {
     int parse(int argc, char *argv[], void *input) {
         int args = 0, i;
 
-        argp->parser(Key::INIT, 0, input);
+        argp->parser(Key::INIT, 0, this);
 
         for (i = 1; i < argc; i++) {
             if (argv[i][0] != '-') {
-                argp->parser(Key::ARG, argv[i], input);
+                argp->parser(Key::ARG, argv[i], this);
                 args++;
                 continue;
             }
@@ -164,7 +172,7 @@ class Parser {
                         }
                     }
 
-                    argp->parser(key, arg, input);
+                    argp->parser(key, arg, this);
 
                     // if last option required argument we are done
                     if (arg) break;
@@ -204,40 +212,39 @@ class Parser {
                     }
                 }
 
-                argp->parser(key, arg, input);
+                argp->parser(key, arg, this);
             }
         }
 
         // parse rest argv as normal arguments
         for (i = i + 1; i < argc; i++) {
-            argp->parser(Key::ARG, argv[i], input);
+            argp->parser(Key::ARG, argv[i], this);
             args++;
         }
 
-        if (!args) argp->parser(Key::NO_ARGS, 0, input);
+        if (!args) argp->parser(Key::NO_ARGS, 0, this);
 
-        argp->parser(Key::END, 0, input);
-        argp->parser(Key::SUCCESS, 0, input);
+        argp->parser(Key::END, 0, this);
+        argp->parser(Key::SUCCESS, 0, this);
 
         return 0;
 
     unknown:
         std::cerr << std::format("unknown option {}\n", argv[i]);
-        argp->parser(Key::ERROR, 0, input);
+        argp->parser(Key::ERROR, 0, this);
         return 1;
 
     missing:
         std::cerr << std::format("option {} missing a value\n", argv[i]);
-        argp->parser(Key::ERROR, 0, input);
+        argp->parser(Key::ERROR, 0, this);
         return 2;
 
     excess:
         std::cerr << std::format("option {} don't require a value\n", argv[i]);
-        argp->parser(Key::ERROR, 0, input);
+        argp->parser(Key::ERROR, 0, this);
         return 3;
     }
 
-  private:
     class trie_t {
       public:
         ~trie_t() noexcept {
