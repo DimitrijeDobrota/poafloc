@@ -43,9 +43,9 @@ using enum Parser::Option;
 static const Parser::option_t options[] = {
     {           0,  'R',      0,               0,        "random 0-group option"},
     {           0,    0,      0,               0,                 "Program mode", 1},
+    {"relocatable", 'r',      0,               0, "Output in relocatable format"},
     {        "hex", 'h',      0,               0,         "Output in hex format"},
     {"hexadecimal",   0,      0, ALIAS | HIDDEN},
-    {"relocatable", 'r',      0,               0, "Output in relocatable format"},
     {            0,   0,      0,               0,               "For developers", 4},
     {      "debug", 777,      0,               0,        "Enable debugging mode"},
     {            0,   0,      0,               0,                 "Input/output", 3},

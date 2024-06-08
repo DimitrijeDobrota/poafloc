@@ -299,22 +299,25 @@ class Parser {
         void push(const char *lg) { opt_long.push_back(lg); }
 
         bool operator<(const help_entry_t &rhs) const {
-            if (group && rhs.group) {
-                if (group < 0 && rhs.group < 0) return group < rhs.group;
-                if (group < 0 || rhs.group < 0) return rhs.group < 0;
-                return group < rhs.group;
+            if (group != rhs.group) {
+                if (group && rhs.group) {
+                    if (group < 0 && rhs.group < 0) return group < rhs.group;
+                    if (group < 0 || rhs.group < 0) return rhs.group < 0;
+                    return group < rhs.group;
+                }
+
+                return !group;
             }
 
-            if (group || rhs.group) return !group;
+            const char l1 = !opt_long.empty()    ? opt_long.front()[0]
+                            : !opt_short.empty() ? opt_short.front()
+                                                 : '0';
 
-            if (opt_long.empty() && rhs.opt_long.empty())
-                return opt_short.front() < rhs.opt_short.front();
+            const char l2 = !rhs.opt_long.empty()    ? rhs.opt_long.front()[0]
+                            : !rhs.opt_short.empty() ? rhs.opt_short.front()
+                                                     : '0';
 
-            if (opt_long.empty())
-                return opt_short.front() <= rhs.opt_long.front()[0];
-
-            if (rhs.opt_long.empty())
-                return opt_long.front()[0] <= rhs.opt_short.front();
+            if (l1 != l2) return l1 < l2;
 
             return std::strcmp(opt_long.front(), rhs.opt_long.front()) < 0;
         }
