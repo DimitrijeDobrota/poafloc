@@ -393,51 +393,44 @@ class Parser {
         std::string message = std::format("Usage: {}", name);
 
         message += " [-";
-        for (int i = 0; true; i++) {
-            const auto &opt = argp->options[i];
-            if (!opt.name && !opt.key) break;
-            if (!std::isprint(opt.key)) continue;
-            if (opt.arg) continue;
-
-            message += (char)opt.key;
+        for (const auto &entry : help_entries) {
+            if (entry.arg()) continue;
+            for (const char c : entry.opt_short()) {
+                message += c;
+            }
         }
-        message += "?]";
+        message += "]";
 
         std::cout << message;
         count = size(message);
 
-        for (int i = 0; true; i++) {
-            const auto &opt = argp->options[i];
-            if (!opt.name && !opt.key) break;
-            if (!std::isprint(opt.key)) continue;
-            if (!opt.arg) continue;
-
-            if (opt.options & Option::ARG_OPTIONAL) {
-                print(std::format(" [-{}[{}]]", (char)opt.key, opt.arg));
-            } else {
-                print(std::format(" [-{} {}]", (char)opt.key, opt.arg));
-            }
-        }
-
-        for (int i = 0; true; i++) {
-            const auto &opt = argp->options[i];
-            if (!opt.name && !opt.key) break;
-            if (!opt.name) continue;
-
-            if (!opt.arg) print(std::format(" [--{}]", opt.name));
-            else {
-                if (opt.options & Option::ARG_OPTIONAL) {
-                    print(std::format(" [--{}[={}]]", opt.name, opt.arg));
+        for (const auto &entry : help_entries) {
+            if (!entry.arg()) continue;
+            for (const char c : entry.opt_short()) {
+                if (entry.opt()) {
+                    print(std::format(" [-{}[{}]]", c, entry.arg()));
                 } else {
-                    print(std::format(" [--{}={}]", opt.name, opt.arg));
+                    print(std::format(" [-{} {}]", c, entry.arg()));
                 }
             }
         }
 
-        print(" [--help]");
-        print(" [--usage] ");
-        if (argp->doc) print(argp->doc);
+        for (const auto &entry : help_entries) {
+            for (const char *name : entry.opt_long()) {
+                if (!entry.arg()) {
+                    print(std::format(" [--{}]", name));
+                    continue;
+                }
 
+                if (entry.opt()) {
+                    print(std::format(" [--{}[={}]]", name, entry.arg()));
+                } else {
+                    print(std::format(" [--{}={}]", name, entry.arg()));
+                }
+            }
+        }
+
+        if (argp->doc) print(argp->doc);
         std::cout << std::endl;
 
         exit(0);
