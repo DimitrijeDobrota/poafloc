@@ -34,11 +34,11 @@ AlignTrailingComments: true
 AllowAllArgumentsOnNextLine: true
 AllowAllParametersOfDeclarationOnNextLine: true
 AllowShortEnumsOnASingleLine: false
-AllowShortBlocksOnASingleLine: false
+AllowShortBlocksOnASingleLine: Always
 AllowShortCaseLabelsOnASingleLine: true
 AllowShortFunctionsOnASingleLine: true
 AllowShortLambdasOnASingleLine: All
-AllowShortIfStatementsOnASingleLine: Always
+AllowShortIfStatementsOnASingleLine: AllIfsAndElse
 AllowShortLoopsOnASingleLine: false
 AlwaysBreakAfterDefinitionReturnType: None
 AlwaysBreakAfterReturnType: None
