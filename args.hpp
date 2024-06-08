@@ -315,13 +315,11 @@ class Parser {
                 else message += ", ";
 
                 message += std::format("-{}", c);
-                if (entry.arg && entry.opt_long.empty()) {
-                    if (entry.opt) {
-                        message += std::format("[{}]", entry.arg);
-                    } else {
-                        message += std::format(" {}", entry.arg);
-                    }
-                }
+
+                if (!entry.arg || !entry.opt_long.empty()) continue;
+
+                if (entry.opt) message += std::format("[{}]", entry.arg);
+                else message += std::format(" {}", entry.arg);
             }
 
             if (!prev) message += "    ";
@@ -331,13 +329,11 @@ class Parser {
                 else message += ", ";
 
                 message += std::format("--{}", l);
-                if (entry.arg) {
-                    if (entry.opt) {
-                        message += std::format("[={}]", entry.arg);
-                    } else {
-                        message += std::format("={}", entry.arg);
-                    }
-                }
+
+                if (!entry.arg) continue;
+
+                if (entry.opt) message += std::format("[={}]", entry.arg);
+                else message += std::format("={}", entry.arg);
             }
 
             static const std::size_t limit = 30;
@@ -398,11 +394,8 @@ class Parser {
         for (const auto &entry : help_entries) {
             if (!entry.arg) continue;
             for (const char c : entry.opt_short) {
-                if (entry.opt) {
-                    print(std::format(" [-{}[{}]]", c, entry.arg));
-                } else {
-                    print(std::format(" [-{} {}]", c, entry.arg));
-                }
+                if (entry.opt) print(std::format(" [-{}[{}]]", c, entry.arg));
+                else print(std::format(" [-{} {}]", c, entry.arg));
             }
         }
 
