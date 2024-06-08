@@ -45,10 +45,10 @@ class Parser {
     };
 
     Parser(argp_t *argp) : argp(argp) {
-        int key_last;
-        int i = 0;
+        bool hidden = false;
+        int key_last = 0;
 
-        while (true) {
+        for (int i = 0; true; i++) {
             const auto &opt = argp->options[i];
             if (!opt.name && !opt.key) break;
 
@@ -64,6 +64,10 @@ class Parser {
                 }
 
                 trie.insert(opt.name, key_last);
+
+                if (hidden) continue;
+                if (opt.options & Option::HIDDEN) continue;
+
                 help_entries.back().push(opt.name);
             } else {
                 if (options.count(opt.key)) {
@@ -77,6 +81,8 @@ class Parser {
                 bool arg_opt = opt.options & Option::ARG_OPTIONAL;
 
                 if ((opt.options & ALIAS) == 0) {
+                    if ((hidden = opt.options & Option::HIDDEN)) continue;
+
                     help_entries.emplace_back(opt.arg, opt.message, arg_opt);
 
                     if (opt.name) help_entries.back().push(opt.name);
@@ -89,14 +95,15 @@ class Parser {
                         throw new std::runtime_error("no alias");
                     }
 
+                    if (hidden) continue;
+                    if (opt.options & Option::HIDDEN) continue;
+
                     if (opt.name) help_entries.back().push(opt.name);
                     if (std::isprint(opt.key)) {
                         help_entries.back().push(opt.key);
                     }
                 }
             }
-
-            i++;
         }
 
         std::sort(begin(help_entries), end(help_entries));
