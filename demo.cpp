@@ -52,7 +52,12 @@ static const Parser::option_t options[] = {
 // clang-format on
 
 int main(int argc, char *argv[]) {
-    Parser::argp_t argp = {options, parse_opt, "doc string"};
+    Parser::argp_t argp = {
+        options,
+        parse_opt,
+        "doc string\nother usage",
+        "First half of the message\vsecond half of the message"
+    };
     Parser parser(&argp);
 
     arguments_t arguments;
