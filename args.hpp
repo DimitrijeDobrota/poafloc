@@ -274,41 +274,32 @@ class Parser {
         bool terminal = false;
     };
 
-    class help_entry_t {
-      public:
+    struct help_entry_t {
+        std::vector<const char *> opt_long;
+        std::vector<char> opt_short;
+
+        const char *arg;
+        const char *message;
+        bool opt;
+
         help_entry_t(const char *arg, const char *message, bool opt)
-            : m_arg(arg), m_message(message), m_opt(opt) {}
+            : arg(arg), message(message), opt(opt) {}
 
-        void push(char sh) { m_opt_short.push_back(sh); }
-        void push(const char *lg) { m_opt_long.push_back(lg); }
-
-        const auto arg() const { return m_arg; }
-        const auto message() const { return m_message; }
-        const auto &opt_short() const { return m_opt_short; }
-        const auto &opt_long() const { return m_opt_long; }
-
-        const auto opt() const { return m_opt; }
+        void push(char sh) { opt_short.push_back(sh); }
+        void push(const char *lg) { opt_long.push_back(lg); }
 
         bool operator<(const help_entry_t &rhs) const {
-            if (m_opt_long.empty() && rhs.m_opt_long.empty())
-                return m_opt_short.front() < rhs.m_opt_short.front();
+            if (opt_long.empty() && rhs.opt_long.empty())
+                return opt_short.front() < rhs.opt_short.front();
 
-            if (m_opt_long.empty())
-                return m_opt_short.front() <= rhs.m_opt_long.front()[0];
+            if (opt_long.empty())
+                return opt_short.front() <= rhs.opt_long.front()[0];
 
-            if (rhs.m_opt_long.empty())
-                return m_opt_long.front()[0] <= rhs.m_opt_short.front();
+            if (rhs.opt_long.empty())
+                return opt_long.front()[0] <= rhs.opt_short.front();
 
-            return std::strcmp(m_opt_long.front(), rhs.m_opt_long.front()) < 0;
+            return std::strcmp(opt_long.front(), rhs.opt_long.front()) < 0;
         }
-
-      private:
-        std::vector<char> m_opt_short;
-        std::vector<const char *> m_opt_long;
-
-        const char *m_arg;
-        const char *m_message;
-        bool m_opt;
     };
 
     void help(const char *name) const {
@@ -319,32 +310,32 @@ class Parser {
             bool prev = false;
 
             std::string message = "  ";
-            for (const char c : entry.opt_short()) {
+            for (const char c : entry.opt_short) {
                 if (!prev) prev = true;
                 else message += ", ";
 
                 message += std::format("-{}", c);
-                if (entry.arg() && entry.opt_long().empty()) {
-                    if (entry.opt()) {
-                        message += std::format("[{}]", entry.arg());
+                if (entry.arg && entry.opt_long.empty()) {
+                    if (entry.opt) {
+                        message += std::format("[{}]", entry.arg);
                     } else {
-                        message += std::format(" {}", entry.arg());
+                        message += std::format(" {}", entry.arg);
                     }
                 }
             }
 
             if (!prev) message += "    ";
 
-            for (const auto l : entry.opt_long()) {
+            for (const auto l : entry.opt_long) {
                 if (!prev) prev = true;
                 else message += ", ";
 
                 message += std::format("--{}", l);
-                if (entry.arg()) {
-                    if (entry.opt()) {
-                        message += std::format("[={}]", entry.arg());
+                if (entry.arg) {
+                    if (entry.opt) {
+                        message += std::format("[={}]", entry.arg);
                     } else {
-                        message += std::format("={}", entry.arg());
+                        message += std::format("={}", entry.arg);
                     }
                 }
             }
@@ -356,8 +347,8 @@ class Parser {
 
             std::cout << message;
 
-            if (entry.message()) {
-                std::istringstream iss(entry.message());
+            if (entry.message) {
+                std::istringstream iss(entry.message);
                 std::size_t count = 0;
                 std::string s;
 
@@ -394,8 +385,8 @@ class Parser {
 
         message += " [-";
         for (const auto &entry : help_entries) {
-            if (entry.arg()) continue;
-            for (const char c : entry.opt_short()) {
+            if (entry.arg) continue;
+            for (const char c : entry.opt_short) {
                 message += c;
             }
         }
@@ -405,27 +396,27 @@ class Parser {
         count = size(message);
 
         for (const auto &entry : help_entries) {
-            if (!entry.arg()) continue;
-            for (const char c : entry.opt_short()) {
-                if (entry.opt()) {
-                    print(std::format(" [-{}[{}]]", c, entry.arg()));
+            if (!entry.arg) continue;
+            for (const char c : entry.opt_short) {
+                if (entry.opt) {
+                    print(std::format(" [-{}[{}]]", c, entry.arg));
                 } else {
-                    print(std::format(" [-{} {}]", c, entry.arg()));
+                    print(std::format(" [-{} {}]", c, entry.arg));
                 }
             }
         }
 
         for (const auto &entry : help_entries) {
-            for (const char *name : entry.opt_long()) {
-                if (!entry.arg()) {
+            for (const char *name : entry.opt_long) {
+                if (!entry.arg) {
                     print(std::format(" [--{}]", name));
                     continue;
                 }
 
-                if (entry.opt()) {
-                    print(std::format(" [--{}[={}]]", name, entry.arg()));
+                if (entry.opt) {
+                    print(std::format(" [--{}[={}]]", name, entry.arg));
                 } else {
-                    print(std::format(" [--{}={}]", name, entry.arg()));
+                    print(std::format(" [--{}={}]", name, entry.arg));
                 }
             }
         }
