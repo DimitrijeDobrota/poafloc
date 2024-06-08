@@ -74,8 +74,10 @@ class Parser {
                 if (opt.name) trie.insert(opt.name, opt.key);
                 options[key_last = opt.key] = &opt;
 
+                bool arg_opt = opt.options & Option::ARG_OPTIONAL;
+
                 if ((opt.options & ALIAS) == 0) {
-                    help_entries.emplace_back(opt.arg, opt.message);
+                    help_entries.emplace_back(opt.arg, opt.message, arg_opt);
 
                     if (opt.name) help_entries.back().push(opt.name);
                     if (std::isprint(opt.key)) {
@@ -99,7 +101,7 @@ class Parser {
 
         std::sort(begin(help_entries), end(help_entries));
 
-        help_entries.emplace_back(nullptr, "Give this help list");
+        help_entries.emplace_back(nullptr, "Give this help list", false);
         help_entries.back().push("help");
         help_entries.back().push('?');
     }
@@ -258,8 +260,8 @@ class Parser {
 
     class help_entry_t {
       public:
-        help_entry_t(const char *arg, const char *message)
-            : m_arg(arg), m_message(message) {}
+        help_entry_t(const char *arg, const char *message, bool opt)
+            : m_arg(arg), m_message(message), m_opt(opt) {}
 
         void push(char sh) { m_opt_short.push_back(sh); }
         void push(const char *lg) { m_opt_long.push_back(lg); }
@@ -268,6 +270,8 @@ class Parser {
         const auto message() const { return m_message; }
         const auto &opt_short() const { return m_opt_short; }
         const auto &opt_long() const { return m_opt_long; }
+
+        const auto opt() const { return m_opt; }
 
         bool operator<(const help_entry_t &rhs) const {
             if (m_opt_long.empty() && rhs.m_opt_long.empty())
@@ -283,14 +287,15 @@ class Parser {
         }
 
       private:
-        const char *m_arg = nullptr;
-        const char *m_message = nullptr;
-
         std::vector<char> m_opt_short;
         std::vector<const char *> m_opt_long;
+
+        const char *m_arg;
+        const char *m_message;
+        bool m_opt;
     };
 
-    void help(const char *name) {
+    void help(const char *name) const {
         std::cout << std::format("Usage: {} [OPTIONS...] {}\n\n", name,
                                  argp->doc ? argp->doc : "");
 
@@ -304,7 +309,13 @@ class Parser {
                 else
                     std::cout << ", ", count += 2;
 
-                const std::string message = std::format("-{}", c);
+                std::string message = std::format("-{}", c);
+                if (entry.arg() && entry.opt_long().empty()) {
+                    if (entry.opt())
+                        message += std::format("[{}]", entry.arg());
+                    else
+                        message += std::format(" {}", entry.arg());
+                }
 
                 std::cout << message;
                 count += size(message);
@@ -318,7 +329,12 @@ class Parser {
                     std::cout << ", ", count += 2;
 
                 std::string message = std::format("--{}", l);
-                if (entry.arg()) message += std::format("[={}]", entry.arg());
+                if (entry.arg()) {
+                    if (entry.opt())
+                        message += std::format("[={}]", entry.arg());
+                    else
+                        message += std::format("={}", entry.arg());
+                }
 
                 std::cout << message;
                 count += size(message);
