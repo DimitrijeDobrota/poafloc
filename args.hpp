@@ -104,6 +104,10 @@ class Parser {
         help_entries.emplace_back(nullptr, "Give this help list", false);
         help_entries.back().push("help");
         help_entries.back().push('?');
+
+        help_entries.emplace_back(nullptr, "Give a short usage message",
+                                  false);
+        help_entries.back().push("usage");
     }
 
     int parse(int argc, char *argv[], void *input) {
@@ -159,6 +163,11 @@ class Parser {
                 if (opt_s == "help") {
                     if (eq) goto excess;
                     help(argv[0]);
+                }
+
+                if (opt_s == "usage") {
+                    if (eq) goto excess;
+                    usage(argv[0]);
                 }
 
                 const int key = trie.get(opt_s);
@@ -360,6 +369,72 @@ class Parser {
             }
             std::cout << std::endl;
         }
+
+        exit(0);
+    }
+
+    void usage(const char *name) const {
+        static const std::size_t limit = 60;
+        static std::size_t count = 0;
+
+        static const auto print = [](const std::string &message) {
+            if (count + size(message) > limit) {
+                std::cout << "\n      ";
+                count = 6;
+            }
+            std::cout << message;
+            count += size(message);
+        };
+
+        std::string message = std::format("Usage: {}", name);
+
+        message += " [-";
+        for (int i = 0; true; i++) {
+            const auto &opt = argp->options[i];
+            if (!opt.name && !opt.key) break;
+            if (!std::isprint(opt.key)) continue;
+            if (opt.arg) continue;
+
+            message += (char)opt.key;
+        }
+        message += "?]";
+
+        std::cout << message;
+        count = size(message);
+
+        for (int i = 0; true; i++) {
+            const auto &opt = argp->options[i];
+            if (!opt.name && !opt.key) break;
+            if (!std::isprint(opt.key)) continue;
+            if (!opt.arg) continue;
+
+            if (opt.options & Option::ARG_OPTIONAL) {
+                print(std::format(" [-{}[{}]]", (char)opt.key, opt.arg));
+            } else {
+                print(std::format(" [-{} {}]", (char)opt.key, opt.arg));
+            }
+        }
+
+        for (int i = 0; true; i++) {
+            const auto &opt = argp->options[i];
+            if (!opt.name && !opt.key) break;
+            if (!opt.name) continue;
+
+            if (!opt.arg) print(std::format(" [--{}]", opt.name));
+            else {
+                if (opt.options & Option::ARG_OPTIONAL) {
+                    print(std::format(" [--{}[={}]]", opt.name, opt.arg));
+                } else {
+                    print(std::format(" [--{}={}]", opt.name, opt.arg));
+                }
+            }
+        }
+
+        print(" [--help]");
+        print(" [--usage] ");
+        if (argp->doc) print(argp->doc);
+
+        std::cout << std::endl;
 
         exit(0);
     }
