@@ -309,48 +309,45 @@ class Parser {
                                  argp->doc ? argp->doc : "");
 
         for (const auto &entry : help_entries) {
-            std::size_t count = 0;
             bool prev = false;
 
-            std::cout << "  ";
+            std::string message = "  ";
             for (const char c : entry.opt_short()) {
                 if (!prev) prev = true;
-                else
-                    std::cout << ", ", count += 2;
+                else message += ", ";
 
-                std::string message = std::format("-{}", c);
+                message += std::format("-{}", c);
                 if (entry.arg() && entry.opt_long().empty()) {
-                    if (entry.opt())
+                    if (entry.opt()) {
                         message += std::format("[{}]", entry.arg());
-                    else
+                    } else {
                         message += std::format(" {}", entry.arg());
+                    }
                 }
-
-                std::cout << message;
-                count += size(message);
             }
 
-            if (!prev) std::cout << "    ", count += 4;
+            if (!prev) message += "    ";
 
             for (const auto l : entry.opt_long()) {
                 if (!prev) prev = true;
-                else
-                    std::cout << ", ", count += 2;
+                else message += ", ";
 
-                std::string message = std::format("--{}", l);
+                message += std::format("--{}", l);
                 if (entry.arg()) {
-                    if (entry.opt())
+                    if (entry.opt()) {
                         message += std::format("[={}]", entry.arg());
-                    else
+                    } else {
                         message += std::format("={}", entry.arg());
+                    }
                 }
-
-                std::cout << message;
-                count += size(message);
             }
 
             static const std::size_t limit = 30;
-            if (count < limit) std::cout << std::string(limit - count, ' ');
+            if (size(message) < limit) {
+                message += std::string(limit - size(message), ' ');
+            }
+
+            std::cout << message;
 
             if (entry.message()) {
                 std::istringstream iss(entry.message());
