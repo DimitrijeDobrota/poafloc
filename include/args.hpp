@@ -14,21 +14,6 @@ class Parser {
     using option_t = args_option_t;
     using argp_t = args_argp_t;
 
-    enum Option {
-        ARG_OPTIONAL = ARGS_OPTION_ARG_OPTIONAL,
-        HIDDEN = ARGS_OPTION_HIDDEN,
-        ALIAS = ARGS_OPTION_ALIAS,
-    };
-
-    enum Key {
-        ARG = ARGS_KEY_ARG,
-        END = ARGS_KEY_END,
-        NO_ARGS = ARGS_KEY_NO_ARGS,
-        INIT = ARGS_KEY_INIT,
-        SUCCESS = ARGS_KEY_SUCCESS,
-        ERROR = ARGS_KEY_ERROR,
-    };
-
     static int parse(argp_t *argp, int argc, char *argv[], void *input) {
         Parser parser(input, argp);
         return parser.parse(argc, argv, &parser);

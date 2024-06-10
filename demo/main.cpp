@@ -33,14 +33,12 @@ int parse_opt(int key, const char *arg, Parser *parser) {
         break;
     case 'o': arguments->output_file = arg ? arg : "stdout"; break;
     case 'i': arguments->input_file = arg; break;
-    case Parser::Key::ARG: arguments->args.push_back(arg); break;
-    case Parser::Key::ERROR: std::cerr << "handled error\n";
+    case Key::ARG: arguments->args.push_back(arg); break;
+    case Key::ERROR: std::cerr << "handled error\n";
     }
 
     return 0;
 }
-
-using enum Parser::Option;
 
 // clang-format off
 static const Parser::option_t options[] = {
