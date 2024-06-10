@@ -1,43 +1,30 @@
 #ifndef ARGS_HPP
 #define ARGS_HPP
 
+#include "args.h"
+
 #include <string>
 #include <unordered_map>
 #include <vector>
 
 class Parser {
   public:
-    struct option_t {
-        const char *name;
-        const int key;
-        const char *arg;
-        const int flags;
-        const char *message;
-        const int group;
-    };
+    using option_t = args_option_t;
+    using argp_t = args_argp_t;
 
     enum Option {
-        ARG_OPTIONAL = 0x1,
-        HIDDEN = 0x2,
-        ALIAS = 0x4,
+        ARG_OPTIONAL = ARGS_OPTION_ARG_OPTIONAL,
+        HIDDEN = ARGS_OPTION_HIDDEN,
+        ALIAS = ARGS_OPTION_ALIAS,
     };
 
     enum Key {
-        ARG = 0,
-        END = 0x1000001,
-        NO_ARGS = 0x1000002,
-        INIT = 0x1000003,
-        SUCCESS = 0x1000004,
-        ERROR = 0x1000005,
-    };
-
-    struct argp_t {
-        using parse_f = int (*)(int key, const char *arg, Parser *parser);
-
-        const option_t *options;
-        const parse_f parse;
-        const char *doc;
-        const char *message;
+        ARG = ARGS_KEY_ARG,
+        END = ARGS_KEY_END,
+        NO_ARGS = ARGS_KEY_NO_ARGS,
+        INIT = ARGS_KEY_INIT,
+        SUCCESS = ARGS_KEY_SUCCESS,
+        ERROR = ARGS_KEY_ERROR,
     };
 
     static int parse(argp_t *argp, int argc, char *argv[], void *input) {
