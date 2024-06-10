@@ -13,7 +13,8 @@ install(TARGETS args
     PUBLIC_HEADER DESTINATION include
 )
 
- add_library(cargs STATIC c_bindings.cpp args.cpp help.cpp trie.cpp)
+add_library(cargs STATIC c_bindings.cpp args.cpp help.cpp trie.cpp)
+target_compile_definitions(cargs PRIVATE WITH_C_BINDINGS)
 target_include_directories(cargs PUBLIC ../include)
 set_target_properties(cargs PROPERTIES LINKER_LANGUAGE CXX)
 
