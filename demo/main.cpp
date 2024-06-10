@@ -8,8 +8,8 @@ using namespace args;
 
 void error(const std::string &message) { std::cerr << message << std::endl; }
 struct arguments_t {
-    const char *output_file = "";
-    const char *input_file = "";
+    const char *output_file = "stdout";
+    const char *input_file = "stdin";
 
     bool debug = 0;
     bool hex = 0;

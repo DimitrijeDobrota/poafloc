@@ -10,7 +10,7 @@ set_target_properties(demo PROPERTIES
 )
 
 add_executable(cdemo main.c)
-target_link_libraries(cdemo PRIVATE cargs)
+target_link_libraries(cdemo PRIVATE args)
 set_target_properties(cdemo PROPERTIES LANGUAGE C)
 set_target_properties(cdemo PROPERTIES
     VERSION ${PROJECT_VERSION}

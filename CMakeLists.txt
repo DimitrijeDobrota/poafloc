@@ -3,7 +3,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 project(
     args
-    VERSION 0.0.2
+    VERSION 0.0.3
     DESCRIPTION "Command Line Argument Parser"
     LANGUAGES CXX C
 )

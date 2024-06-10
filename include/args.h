@@ -25,21 +25,21 @@ typedef struct __Parser args_parser;
 #endif
 
 typedef struct {
-    const char *name;
+    char const *name;
     int key;
-    const char *arg;
+    char const *arg;
     int flags;
-    const char *message;
+    char const *message;
     int group;
 } args_option_t;
 
 typedef int (*args_parse_f)(int key, const char *arg, args_parser *parser);
 
 typedef struct {
-    const args_option_t *options;
-    const args_parse_f parse;
-    const char *doc;
-    const char *message;
+    args_option_t const *options;
+    args_parse_f parse;
+    char const *doc;
+    char const *message;
 } args_argp_t;
 
 enum ENUM_OPTION {
