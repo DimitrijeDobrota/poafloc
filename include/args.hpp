@@ -7,6 +7,8 @@
 #include <unordered_map>
 #include <vector>
 
+namespace args {
+
 class Parser {
   public:
     using option_t = args_option_t;
@@ -82,5 +84,7 @@ class Parser {
     std::vector<help_entry_t> help_entries;
     trie_t trie;
 };
+
+} // namespace args
 
 #endif

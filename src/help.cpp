@@ -5,6 +5,8 @@
 #include <iostream>
 #include <sstream>
 
+namespace args {
+
 bool Parser::help_entry_t::operator<(const help_entry_t &rhs) const {
     if (group != rhs.group) {
         if (group && rhs.group) {
@@ -180,3 +182,5 @@ void Parser::usage(const char *name) const {
 
     exit(0);
 }
+
+} // namespace args

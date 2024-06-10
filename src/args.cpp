@@ -7,6 +7,8 @@
 #include <iostream>
 #include <sstream>
 
+namespace args {
+
 Parser::Parser(void *input, argp_t *argp) : input(input), argp(argp) {
     int group = 0, key_last = 0;
     bool hidden = false;
@@ -197,3 +199,5 @@ excess:
     argp->parse(Key::ERROR, 0, this);
     return 3;
 }
+
+} // namespace args

@@ -4,6 +4,8 @@
 #include <iostream>
 #include <vector>
 
+using namespace args;
+
 void error(const std::string &message) { std::cerr << message << std::endl; }
 struct arguments_t {
     const char *output_file = "";

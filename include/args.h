@@ -3,6 +3,7 @@
 
 #ifdef __cplusplus
 extern "C" {
+namespace args {
 struct Parser;
 typedef Parser args_parser;
 #else
@@ -48,6 +49,7 @@ int args_parse(args_argp_t *argp, int argc, char *argv[], void *input);
 void *args_parser_input(args_parser *parser);
 
 #ifdef __cplusplus
+} // namespace args
 } // extern "C"
 #endif
 

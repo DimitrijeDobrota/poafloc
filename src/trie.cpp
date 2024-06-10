@@ -2,6 +2,8 @@
 
 #include <cstdint>
 
+namespace args {
+
 Parser::trie_t::~trie_t() noexcept {
     for (uint8_t i = 0; i < 26; i++) {
         delete children[i];
@@ -36,3 +38,5 @@ int Parser::trie_t::get(const std::string &option) const {
     if (!crnt->terminal && crnt->count > 1) return 0;
     return crnt->key;
 }
+
+} // namespace args
