@@ -1,6 +1,7 @@
 #include "args.hpp"
 
 #include <cstdint>
+#include <iostream>
 #include <vector>
 
 void error(const std::string &message) { std::cerr << message << std::endl; }
