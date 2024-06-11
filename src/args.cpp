@@ -38,7 +38,10 @@ Parser::Parser(const argp_t *argp, void *input) : argp(argp), m_input(input) {
                 continue;
             }
 
-            trie.insert(opt.name, key_last);
+            if (!trie.insert(opt.name, key_last)) {
+                // option not valid, silently ignoring
+                continue;
+            }
 
             if (hidden) continue;
             if (opt.flags & Option::HIDDEN) continue;
@@ -152,7 +155,7 @@ int Parser::parse(int argc, char *argv[], void *input) {
                 usage(argv[0]);
             }
 
-            const int key = trie.get(opt_s);
+            const int key = trie.get(opt_s.data());
 
             if (!key) goto unknown;
 

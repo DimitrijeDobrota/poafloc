@@ -10,33 +10,44 @@ Parser::trie_t::~trie_t() noexcept {
     }
 }
 
-void Parser::trie_t::insert(const std::string &option, int key) {
+bool Parser::trie_t::insert(const char *option, int key) {
     trie_t *crnt = this;
 
-    for (const char c : option) {
+    if (!is_valid(option)) return false;
+    for (; *option; option++) {
         if (!crnt->terminal) crnt->key = key;
         crnt->count++;
 
-        const uint8_t idx = c - 'a';
+        const uint8_t idx = *option - 'a';
         if (!crnt->children[idx]) crnt->children[idx] = new trie_t();
         crnt = crnt->children[idx];
     }
 
     crnt->terminal = true;
     crnt->key = key;
+
+    return true;
 }
 
-int Parser::trie_t::get(const std::string &option) const {
+int Parser::trie_t::get(const char *option) const {
     const trie_t *crnt = this;
 
-    for (const char c : option) {
-        const uint8_t idx = c - 'a';
+    if (!is_valid(option)) return 0;
+    for (; *option; option++) {
+        const uint8_t idx = *option - 'a';
         if (!crnt->children[idx]) return 0;
         crnt = crnt->children[idx];
     }
 
     if (!crnt->terminal && crnt->count > 1) return 0;
     return crnt->key;
+}
+
+bool Parser::trie_t::is_valid(const char *option) {
+    for (; *option; option++) {
+        if (!std::islower(*option)) return false;
+    }
+    return true;
 }
 
 } // namespace args

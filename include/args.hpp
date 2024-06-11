@@ -50,12 +50,19 @@ class Parser {
 
     class trie_t {
       public:
+        trie_t() = default;
+        trie_t(const trie_t &) = delete;
+        trie_t(trie_t &&) = delete;
+        trie_t &operator=(const trie_t &) = delete;
+        trie_t &operator=(trie_t &&) = delete;
         ~trie_t() noexcept;
 
-        void insert(const std::string &option, int key);
-        int get(const std::string &option) const;
+        bool insert(const char *option, int key);
+        int get(const char *option) const;
 
       private:
+        static bool is_valid(const char *option);
+
         trie_t *children[26] = {0};
         int count = 0;
         int key = 0;
