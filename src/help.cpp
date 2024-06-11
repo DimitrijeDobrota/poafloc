@@ -2,7 +2,6 @@
 
 #include <cstring>
 #include <format>
-#include <iostream>
 #include <sstream>
 
 namespace args {
@@ -31,21 +30,22 @@ bool Parser::help_entry_t::operator<(const help_entry_t &rhs) const {
     return std::strcmp(opt_long.front(), rhs.opt_long.front()) < 0;
 }
 
-void Parser::print_usage(const char *name) const {
+void Parser::print_usage(FILE *stream) const {
     if (argp->doc) {
         std::istringstream iss(argp->doc);
         std::string s;
 
         std::getline(iss, s, '\n');
-        std::cout << " " << s;
+        std::fprintf(stream, " %s", s.c_str());
 
         while (std::getline(iss, s, '\n')) {
-            std::cout << std::format("\n   or: {} [OPTIONS...] {}", name, s);
+            std::fprintf(stream, "\n   or: %s [OPTIONS...] %s", m_name,
+                         s.c_str());
         }
     }
 }
 
-void Parser::help(const char *name) const {
+void Parser::help(FILE *stream) const {
     std::string m1, m2;
     if (argp->message) {
         std::istringstream iss(argp->message);
@@ -53,18 +53,19 @@ void Parser::help(const char *name) const {
         std::getline(iss, m2, '\v');
     }
 
-    std::cout << std::format("Usage: {} [OPTIONS...]", name);
-    print_usage(name);
-    if (!m1.empty()) std::cout << "\n" << m1;
-    std::cout << "\n\n";
+    std::fprintf(stream, "Usage: %s [OPTIONS...]", m_name);
+    print_usage(stream);
+
+    if (!m1.empty()) std::fprintf(stream, "\n%s", m1.c_str());
+    std::fprintf(stream, "\n\n");
 
     bool first = true;
     for (const auto &entry : help_entries) {
         bool prev = false;
 
         if (entry.opt_short.empty() && entry.opt_long.empty()) {
-            if (!first) std::cout << "\n";
-            if (entry.message) std::cout << " " << entry.message << ":\n";
+            if (!first) std::putc('\n', stream);
+            if (entry.message) std::fprintf(stream, " %s:\n", entry.message);
             continue;
         }
 
@@ -97,50 +98,48 @@ void Parser::help(const char *name) const {
             else message += std::format("={}", entry.arg);
         }
 
-        static const std::size_t limit = 30;
+        static const int limit = 30;
         if (size(message) < limit) {
             message += std::string(limit - size(message), ' ');
         }
 
-        std::cout << message;
+        std::fprintf(stream, "%s", message.c_str());
 
         if (entry.message) {
             std::istringstream iss(entry.message);
             std::size_t count = 0;
             std::string s;
 
-            std::cout << "   ";
+            std::fprintf(stream, "   ");
             while (iss >> s) {
                 count += size(s);
                 if (count > limit) {
-                    std::cout << std::endl << std::string(limit + 5, ' ');
+                    std::fprintf(stream, "\n%*c", limit + 5, ' ');
                     count = size(s);
                 }
-                std::cout << s << " ";
+                std::fprintf(stream, "%s ", s.c_str());
             }
         }
-        std::cout << std::endl;
+        std::putc('\n', stream);
     }
 
-    if (!m2.empty()) std::cout << "\n" << m2 << "\n";
-
-    exit(0);
+    if (!m2.empty()) std::fprintf(stream, "\n%s\n", m2.c_str());
 }
 
-void Parser::usage(const char *name) const {
+void Parser::usage(FILE *stream) const {
     static const std::size_t limit = 60;
     static std::size_t count = 0;
 
-    static const auto print = [](const std::string &message) {
+    static const auto print = [&stream](const std::string &message) {
         if (count + size(message) > limit) {
-            std::cout << "\n      ";
+            std::fprintf(stream, "\n      ");
             count = 6;
         }
-        std::cout << message;
+        std::fprintf(stream, "%s", message.c_str());
         count += size(message);
     };
 
-    std::string message = std::format("Usage: {}", name);
+    std::string message = std::format("Usage: {}", m_name);
 
     message += " [-";
     for (const auto &entry : help_entries) {
@@ -151,7 +150,7 @@ void Parser::usage(const char *name) const {
     }
     message += "]";
 
-    std::cout << message;
+    std::fprintf(stream, "%s", message.c_str());
     count = size(message);
 
     for (const auto &entry : help_entries) {
@@ -177,10 +176,14 @@ void Parser::usage(const char *name) const {
         }
     }
 
-    print_usage(name);
-    std::cout << std::endl;
+    print_usage(stream);
+    std::putc('\n', stream);
+}
 
-    exit(0);
+void Parser::see(FILE *stream) const {
+    std::fprintf(stream,
+                 "Try '%s --help' or '%s --usage' for more information\n",
+                 m_name, m_name);
 }
 
 } // namespace args

@@ -3,6 +3,7 @@
 
 #include "args.h"
 
+#include <cstdarg>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -12,16 +13,29 @@ namespace args {
 using option_t = args_option_t;
 using argp_t = args_argp_t;
 
-int parse(const argp_t *argp, int argc, char *argv[], void *input) noexcept;
+int parse(const argp_t *argp, int argc, char *argv[], unsigned flags,
+          void *input) noexcept;
+
+void usage(const Parser *parser);
+void help(const Parser *parser, FILE *stream, unsigned flags);
+
+void failure(const Parser *parser, int status, int errnum, const char *fmt,
+             va_list args);
+
+void failure(const Parser *parser, int status, int errnum, const char *fmt,
+             ...);
 
 class Parser {
   public:
     void *input() const { return m_input; }
+    const char *name() const { return m_name; }
+    unsigned flags() const { return m_flags; }
 
   private:
-    friend int parse(const argp_t *, int, char **, void *) noexcept;
+    friend int parse(const argp_t *, int, char **, unsigned, void *) noexcept;
+    friend void help(const Parser *parser, FILE *stream, unsigned flags);
 
-    Parser(const argp_t *argp, void *input);
+    Parser(const argp_t *argp, unsigned flags, void *input);
     Parser(const Parser &) = delete;
     Parser(Parser &&) = delete;
     Parser &operator=(const Parser &) = delete;
@@ -30,9 +44,16 @@ class Parser {
 
     int parse(int argc, char *argv[], void *input);
 
-    void print_usage(const char *name) const;
-    void help(const char *name) const;
-    void usage(const char *name) const;
+    int handle_unknown(bool shrt, const char *argv);
+    int handle_missing(bool shrt, const char *argv);
+    int handle_excess(bool shrt, const char *argv);
+
+    void print_usage(FILE *stream) const;
+    void help(FILE *stream) const;
+    void usage(FILE *stream) const;
+    void see(FILE *stream) const;
+
+    static const char *basename(const char *name);
 
     struct help_entry_t {
         help_entry_t(const char *arg, const char *message, int group,
@@ -75,7 +96,10 @@ class Parser {
     };
 
     const argp_t *argp;
+    unsigned m_flags;
     void *m_input;
+
+    const char *m_name;
 
     std::unordered_map<int, const option_t *> options;
     std::vector<help_entry_t> help_entries;

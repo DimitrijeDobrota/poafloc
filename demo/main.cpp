@@ -34,7 +34,7 @@ int parse_opt(int key, const char *arg, Parser *parser) {
     case 'o': arguments->output_file = arg ? arg : "stdout"; break;
     case 'i': arguments->input_file = arg; break;
     case Key::ARG: arguments->args.push_back(arg); break;
-    case Key::ERROR: std::cerr << "handled error\n";
+    case Key::ERROR: help(parser, stderr, STD_ERR);
     }
 
     return 0;
@@ -65,7 +65,7 @@ static const argp_t argp = {
 int main(int argc, char *argv[]) {
     arguments_t arguments;
 
-    if (parse(&argp, argc, argv, &arguments)) {
+    if (parse(&argp, argc, argv, 0, &arguments)) {
         error("There was an error while parsing arguments");
         return 1;
     }

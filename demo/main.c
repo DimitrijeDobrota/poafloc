@@ -63,7 +63,7 @@ static const args_argp_t argp = {
 int main(int argc, char *argv[]) {
     arguments_t arguments = {0};
 
-    if (args_parse(&argp, argc, argv, &arguments)) {
+    if (args_parse(&argp, argc, argv, 0, &arguments)) {
         error("There was an error while parsing arguments");
         return 1;
     }
