@@ -22,6 +22,11 @@ class Parser {
     friend int parse(const argp_t *, int, char **, void *) noexcept;
 
     Parser(const argp_t *argp, void *input);
+    Parser(const Parser &) = delete;
+    Parser(Parser &&) = delete;
+    Parser &operator=(const Parser &) = delete;
+    Parser &operator=(Parser &&) = delete;
+    ~Parser() noexcept = default;
 
     int parse(int argc, char *argv[], void *input);
 
