@@ -59,7 +59,7 @@ enum ENUM_KEY {
 
 #if !defined __cplusplus || defined WITH_C_BINDINGS
 
-int args_parse(args_argp_t *argp, int argc, char *argv[], void *input);
+int args_parse(const args_argp_t *argp, int argc, char *argv[], void *input);
 void *args_parser_input(args_parser *parser);
 
 #endif

@@ -9,7 +9,12 @@
 
 namespace args {
 
-Parser::Parser(void *input, argp_t *argp) : input(input), argp(argp) {
+int parse(const argp_t *argp, int argc, char *argv[], void *input) {
+    Parser parser(argp, input);
+    return parser.parse(argc, argv, &parser);
+}
+
+Parser::Parser(const argp_t *argp, void *input) : argp(argp), m_input(input) {
     int group = 0, key_last = 0;
     bool hidden = false;
 

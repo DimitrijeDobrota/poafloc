@@ -19,7 +19,7 @@ struct arguments_t {
 };
 
 int parse_opt(int key, const char *arg, Parser *parser) {
-    auto arguments = (arguments_t *)parser->input;
+    auto arguments = (arguments_t *)parser->input();
 
     switch (key) {
     case 777: arguments->debug = true; break;
@@ -41,7 +41,7 @@ int parse_opt(int key, const char *arg, Parser *parser) {
 }
 
 // clang-format off
-static const Parser::option_t options[] = {
+static const option_t options[] = {
     {           0,  'R',      0,               0,        "random 0-group option"},
     {           0,    0,      0,               0,                 "Program mode", 1},
     {"relocatable", 'r',      0,               0, "Output in relocatable format"},
@@ -55,15 +55,17 @@ static const Parser::option_t options[] = {
     {            0,   0,      0,               0,        "Informational Options", -1},
     {0},
 };
+
+static const argp_t argp = {
+	options, parse_opt, "doc string\nother usage",
+	"First half of the message\vsecond half of the message"
+};
 // clang-format on
 
 int main(int argc, char *argv[]) {
     arguments_t arguments;
-    Parser::argp_t argp = {
-        options, parse_opt, "doc string\nother usage",
-        "First half of the message\vsecond half of the message"};
 
-    if (Parser::parse(&argp, argc, argv, &arguments)) {
+    if (parse(&argp, argc, argv, &arguments)) {
         error("There was an error while parsing arguments");
         return 1;
     }

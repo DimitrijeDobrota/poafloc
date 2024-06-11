@@ -53,13 +53,15 @@ static const args_option_t options[] = {
     {            0,   0,      0,                        0,        "Informational Options", -1},
     {0},
 };
+
+static const args_argp_t argp = {
+	options, parse_opt, "doc string\nother usage",
+	"First half of the message\vsecond half of the message"
+};
 // clang-format on
 
 int main(int argc, char *argv[]) {
     arguments_t arguments = {0};
-    args_argp_t argp = {
-        options, parse_opt, "doc string\nother usage",
-        "First half of the message\vsecond half of the message"};
 
     if (args_parse(&argp, argc, argv, &arguments)) {
         error("There was an error while parsing arguments");

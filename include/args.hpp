@@ -9,20 +9,19 @@
 
 namespace args {
 
+using option_t = args_option_t;
+using argp_t = args_argp_t;
+
+int parse(const argp_t *argp, int argc, char *argv[], void *input);
+
 class Parser {
   public:
-    using option_t = args_option_t;
-    using argp_t = args_argp_t;
-
-    static int parse(argp_t *argp, int argc, char *argv[], void *input) {
-        Parser parser(input, argp);
-        return parser.parse(argc, argv, &parser);
-    }
-
-    void *input;
+    void *input() const { return m_input; }
 
   private:
-    Parser(void *input, argp_t *argp);
+    friend int parse(const argp_t *argp, int argc, char *argv[], void *input);
+
+    Parser(const argp_t *argp, void *input);
 
     int parse(int argc, char *argv[], void *input);
 
@@ -64,6 +63,7 @@ class Parser {
     };
 
     const argp_t *argp;
+    void *m_input;
 
     std::unordered_map<int, const option_t *> options;
     std::vector<help_entry_t> help_entries;
