@@ -2,14 +2,13 @@
 
 #include <algorithm>
 #include <cstring>
-#include <exception>
 #include <format>
 #include <iostream>
 #include <sstream>
 
 namespace args {
 
-int parse(const argp_t *argp, int argc, char *argv[], void *input) {
+int parse(const argp_t *argp, int argc, char *argv[], void *input) noexcept {
     Parser parser(argp, input);
     return parser.parse(argc, argv, &parser);
 }
@@ -30,13 +29,13 @@ Parser::Parser(const argp_t *argp, void *input) : argp(argp), m_input(input) {
 
         if (!opt.key) {
             if ((opt.flags & ALIAS) == 0) {
-                std::cerr << "non alias without a key\n";
-                throw new std::runtime_error("no key");
+                // non alias without a key, silently ignoring
+                continue;
             }
 
             if (!key_last) {
-                std::cerr << "no option to alias\n";
-                throw new std::runtime_error("no alias");
+                // nothing to alias, silently ignoring
+                continue;
             }
 
             trie.insert(opt.name, key_last);
@@ -47,8 +46,8 @@ Parser::Parser(const argp_t *argp, void *input) : argp(argp), m_input(input) {
             help_entries.back().push(opt.name);
         } else {
             if (options.count(opt.key)) {
-                std::cerr << std::format("duplicate key {}\n", opt.key);
-                throw new std::runtime_error("duplicate key");
+                // duplicate key, silently ignoring
+                continue;
             }
 
             if (opt.name) trie.insert(opt.name, opt.key);
@@ -68,8 +67,8 @@ Parser::Parser(const argp_t *argp, void *input) : argp(argp), m_input(input) {
                 }
             } else {
                 if (!key_last) {
-                    std::cerr << "no option to alias\n";
-                    throw new std::runtime_error("no alias");
+                    // nothing to alias, silently ignoring
+                    continue;
                 }
 
                 if (hidden) continue;

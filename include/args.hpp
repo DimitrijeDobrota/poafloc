@@ -12,14 +12,14 @@ namespace args {
 using option_t = args_option_t;
 using argp_t = args_argp_t;
 
-int parse(const argp_t *argp, int argc, char *argv[], void *input);
+int parse(const argp_t *argp, int argc, char *argv[], void *input) noexcept;
 
 class Parser {
   public:
     void *input() const { return m_input; }
 
   private:
-    friend int parse(const argp_t *argp, int argc, char *argv[], void *input);
+    friend int parse(const argp_t *, int, char **, void *) noexcept;
 
     Parser(const argp_t *argp, void *input);
 
