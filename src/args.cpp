@@ -15,7 +15,6 @@ int parse(const argp_t *argp, int argc, char *argv[], unsigned flags,
 }
 
 void usage(const Parser *parser) { help(parser, stderr, Help::STD_USAGE); }
-
 void help(const Parser *parser, FILE *stream, unsigned flags) {
     if (!parser || !stream) return;
 
@@ -58,30 +57,22 @@ Parser::Parser(const argp_t *argp, unsigned flags, void *input)
         }
 
         if (!opt.key) {
-            if (!(opt.flags & ALIAS)) {
-                // non alias without a key, silently ignoring
-                continue;
-            }
+            // non alias without a key, silently ignoring
+            if (!(opt.flags & ALIAS)) continue;
 
-            if (!key_last) {
-                // nothing to alias, silently ignoring
-                continue;
-            }
+            // nothing to alias, silently ignoring
+            if (!key_last) continue;
 
-            if (!trie.insert(opt.name, key_last)) {
-                // option not valid, silently ignoring
-                continue;
-            }
+            // option not valid, silently ignoring
+            if (!trie.insert(opt.name, key_last)) continue;
 
             if (hidden) continue;
             if (opt.flags & Option::HIDDEN) continue;
 
             help_entries.back().push(opt.name);
         } else {
-            if (options.count(opt.key)) {
-                // duplicate key, silently ignoring
-                continue;
-            }
+            // duplicate key, silently ignoring
+            if (options.count(opt.key)) continue;
 
             if (opt.name) trie.insert(opt.name, opt.key);
             options[key_last = opt.key] = &opt;
@@ -97,10 +88,8 @@ Parser::Parser(const argp_t *argp, unsigned flags, void *input)
                 if (opt.name) help_entries.back().push(opt.name);
                 if (std::isprint(opt.key)) help_entries.back().push(opt.key);
             } else {
-                if (!key_last) {
-                    // nothing to alias, silently ignoring
-                    continue;
-                }
+                // nothing to alias, silently ignoring
+                if (!key_last) continue;
 
                 if (hidden) continue;
                 if (opt.flags & Option::HIDDEN) continue;
@@ -125,15 +114,17 @@ Parser::Parser(const argp_t *argp, unsigned flags, void *input)
 
 int Parser::parse(int argc, char *argv[], void *input) {
     const bool is_help = !(m_flags & NO_HELP);
-    int args = 0, err_code = 0, i;
+    std::vector<const char *> args;
+    int arg_cnt = 0, err_code = 0, i;
 
     m_name = basename(argv[0]);
     argp->parse(Key::INIT, 0, this);
 
     for (i = 1; i < argc; i++) {
         if (argv[i][0] != '-') {
-            argp->parse(Key::ARG, argv[i], this);
-            args++;
+            if (m_flags & IN_ORDER) argp->parse(Key::ARG, argv[i], this);
+            else args.push_back(argv[i]);
+            arg_cnt++;
             continue;
         }
 
@@ -194,15 +185,12 @@ int Parser::parse(int argc, char *argv[], void *input) {
             }
 
             const int key = trie.get(opt_s.data());
-
             if (!key) {
                 err_code = handle_unknown(0, argv[i]);
                 goto error;
             }
 
             const auto *option = options[key];
-            const char *arg = nullptr;
-
             if (!option->arg && is_eq) {
                 err_code = handle_excess(0, argv[i]);
                 goto error;
@@ -220,13 +208,18 @@ int Parser::parse(int argc, char *argv[], void *input) {
         }
     }
 
+	// parse previous arguments if IN_ORDER is not set
+    for (const auto arg : args) {
+        argp->parse(Key::ARG, arg, this);
+    }
+
     // parse rest argv as normal arguments
     for (i = i + 1; i < argc; i++) {
         argp->parse(Key::ARG, argv[i], this);
-        args++;
+        arg_cnt++;
     }
 
-    if (!args) argp->parse(Key::NO_ARGS, 0, this);
+    if (!arg_cnt) argp->parse(Key::NO_ARGS, 0, this);
 
     argp->parse(Key::END, 0, this);
     argp->parse(Key::SUCCESS, 0, this);
@@ -248,8 +241,8 @@ int Parser::handle_unknown(bool shrt, const char *argv) {
     failure(this, 1, 0, unknown_fmt[shrt], argv + 1);
     see(stderr);
 
-    if(m_flags & NO_EXIT) return 1;
-	exit(1);
+    if (m_flags & NO_EXIT) return 1;
+    exit(1);
 }
 
 int Parser::handle_missing(bool shrt, const char *argv) {
@@ -263,8 +256,8 @@ int Parser::handle_missing(bool shrt, const char *argv) {
     failure(this, 2, 0, missing_fmt[shrt], argv + 1);
     see(stderr);
 
-    if(m_flags & NO_EXIT) return 2;
-	exit(2);
+    if (m_flags & NO_EXIT) return 2;
+    exit(2);
 }
 
 int Parser::handle_excess(bool shrt, const char *argv) {
@@ -273,8 +266,8 @@ int Parser::handle_excess(bool shrt, const char *argv) {
     failure(this, 3, 0, "option '%s' doesn't allow an argument\n", argv);
     see(stderr);
 
-    if(m_flags & NO_EXIT) return 3;
-	exit(3);
+    if (m_flags & NO_EXIT) return 3;
+    exit(3);
 }
 
 const char *Parser::basename(const char *name) {

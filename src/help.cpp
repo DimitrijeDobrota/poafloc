@@ -30,7 +30,7 @@ bool Parser::help_entry_t::operator<(const help_entry_t &rhs) const {
     return std::strcmp(opt_long.front(), rhs.opt_long.front()) < 0;
 }
 
-void Parser::print_usage(FILE *stream) const {
+void Parser::print_other_usages(FILE *stream) const {
     if (argp->doc) {
         std::istringstream iss(argp->doc);
         std::string s;
@@ -54,7 +54,7 @@ void Parser::help(FILE *stream) const {
     }
 
     std::fprintf(stream, "Usage: %s [OPTIONS...]", m_name);
-    print_usage(stream);
+    print_other_usages(stream);
 
     if (!m1.empty()) std::fprintf(stream, "\n%s", m1.c_str());
     std::fprintf(stream, "\n\n");
@@ -176,7 +176,7 @@ void Parser::usage(FILE *stream) const {
         }
     }
 
-    print_usage(stream);
+    print_other_usages(stream);
     std::putc('\n', stream);
 }
 

@@ -91,6 +91,7 @@ enum ENUM_PARSE {
     MANGLE_ENUM(PARSE, NO_HELP) = 0x2,
     MANGLE_ENUM(PARSE, NO_EXIT) = 0x4,
     MANGLE_ENUM(PARSE, SILENT) = 0x8,
+    MANGLE_ENUM(PARSE, IN_ORDER) = 0x10,
 };
 
 #if !defined __cplusplus || defined WITH_C_BINDINGS

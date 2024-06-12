@@ -48,7 +48,7 @@ class Parser {
     int handle_missing(bool shrt, const char *argv);
     int handle_excess(bool shrt, const char *argv);
 
-    void print_usage(FILE *stream) const;
+    void print_other_usages(FILE *stream) const;
     void help(FILE *stream) const;
     void usage(FILE *stream) const;
     void see(FILE *stream) const;
