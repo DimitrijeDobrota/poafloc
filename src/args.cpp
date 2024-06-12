@@ -29,10 +29,11 @@ void help(const Parser *parser, FILE *stream, unsigned flags) {
 
 void failure(const Parser *parser, int status, int errnum, const char *fmt,
              std::va_list args) {
-    (void)status;
     (void)errnum;
     std::fprintf(stderr, "%s: ", parser->name());
     std::vfprintf(stderr, fmt, args);
+    std::putc('\n', stderr);
+    if (status) exit(status);
 }
 
 void failure(const Parser *parser, int status, int errnum, const char *fmt,
@@ -115,9 +116,11 @@ Parser::Parser(const argp_t *argp, unsigned flags, void *input)
 }
 
 int Parser::parse(int argc, char *argv[]) {
-    const bool is_help = !(m_flags & NO_HELP);
     std::vector<const char *> args;
     int arg_cnt = 0, err_code = 0, i;
+
+    const bool is_help = !(m_flags & NO_HELP);
+    const bool is_error = !(m_flags & NO_ERRS);
 
     m_name = basename(argv[0]);
 
@@ -141,7 +144,10 @@ int Parser::parse(int argc, char *argv[]) {
             for (int j = 0; opt[j]; j++) {
                 const char key = opt[j];
 
-                if (is_help && key == '?') help(stderr);
+                if (is_help && key == '?') {
+                    if (is_error) ::args::help(this, stderr, STD_HELP);
+                    continue;
+                }
 
                 if (!options.count(key)) {
                     err_code = handle_unknown(1, argv[i]);
@@ -174,7 +180,7 @@ int Parser::parse(int argc, char *argv[]) {
                     err_code = handle_excess(argv[i]);
                     goto error;
                 }
-                help(stderr);
+                if (is_error) ::args::help(this, stderr, STD_HELP);
                 continue;
             }
 
@@ -183,7 +189,7 @@ int Parser::parse(int argc, char *argv[]) {
                     err_code = handle_excess(argv[i]);
                     goto error;
                 }
-                usage(stderr);
+                if (is_error) ::args::help(this, stderr, STD_USAGE);
                 continue;
             }
 
