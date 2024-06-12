@@ -3,7 +3,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 project(
     args
-    VERSION 0.0.8
+    VERSION 0.0.9
     DESCRIPTION "Command Line Argument Parser"
     LANGUAGES CXX C
 )
@@ -16,5 +16,49 @@ set(CMAKE_C_STANDARD 17)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS OFF)
 
+if(NOT CMAKE_BUILD_TYPE)
+	set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
+endif()
+
+include(GNUInstallDirs)
+
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/${CMAKE_INSTALL_LIBDIR})
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/${CMAKE_INSTALL_LIBDIR})
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/${CMAKE_INSTALL_BINDIR})
+
+set(INSTALL_LIBDIR ${CMAKE_INSTALL_LIBDIR} CACHE PATH "Installation directory for libraries")
+set(INSTALL_BINDIR ${CMAKE_INSTALL_BINDIR} CACHE PATH "Installation directory for executables")
+set(INSTALL_INCLUDEDIR ${CMAKE_INSTALL_INCLUDEDIR} CACHE PATH "Installation directory for header files")
+if(WIN32 AND NOT CYGWIN)
+	set(DEF_INSTALL_CMAKEDIR CMake)
+	set(DEF_INSTALL_CMAKEDIR share/cmake/${PROJECT_NAME})
+endif()
+set(INSTALL_CMAKEDIR ${CMAKE_INSTALL_CMAKEDIR} CACHE PATH "Installation directory for CMake files")
+
+message(STATUS "Build type set to ${CMAKE_BUILD_TYPE}")
+message(STATUS "Project will be installed to ${CMAKE_INSTALL_PREFIX}")
+foreach(p LIB BIN INCLUDE CMAKE)
+	file(TO_NATIVE_PATH ${CMAKE_INSTALL_PREFIX}/${ISNTALL_${p}DIR} _path)
+	message(STATUS "installing ${p} components to ${_path}")
+	unset(_path)
+endforeach()
+
 add_subdirectory(src)
 add_subdirectory(demo)
+
+install(
+	TARGETS
+		args
+	ARCHIVE
+		DESTINATION ${INSTALL_LIBDIR}
+		COMPONENT lib
+	RUNTIME
+		DESTINATION ${INSTALL_BINDIR}
+		COMPONENT bin
+	LIBRARY
+		DESTINATION ${INSTALL_LIBDIR}
+		COMPONENT lib
+	PUBLIC_HEADER
+		DESTINATION ${INSTALL_INCLUDEDIR}/args
+		COMPONENT dev
+)
