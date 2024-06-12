@@ -11,7 +11,7 @@ namespace args {
 int parse(const argp_t *argp, int argc, char *argv[], unsigned flags,
           void *input) noexcept {
     Parser parser(argp, flags, input);
-    return parser.parse(argc, argv, &parser);
+    return parser.parse(argc, argv);
 }
 
 void usage(const Parser *parser) { help(parser, stderr, Help::STD_USAGE); }
@@ -29,6 +29,8 @@ void help(const Parser *parser, FILE *stream, unsigned flags) {
 
 void failure(const Parser *parser, int status, int errnum, const char *fmt,
              std::va_list args) {
+    (void)status;
+    (void)errnum;
     std::fprintf(stderr, "%s: ", parser->name());
     std::vfprintf(stderr, fmt, args);
 }
@@ -112,12 +114,13 @@ Parser::Parser(const argp_t *argp, unsigned flags, void *input)
     std::sort(begin(help_entries), end(help_entries));
 }
 
-int Parser::parse(int argc, char *argv[], void *input) {
+int Parser::parse(int argc, char *argv[]) {
     const bool is_help = !(m_flags & NO_HELP);
     std::vector<const char *> args;
     int arg_cnt = 0, err_code = 0, i;
 
     m_name = basename(argv[0]);
+
     argp->parse(Key::INIT, 0, this);
 
     for (i = 1; i < argc; i++) {
@@ -168,7 +171,7 @@ int Parser::parse(int argc, char *argv[], void *input) {
 
             if (is_help && opt_s == "help") {
                 if (is_eq) {
-                    err_code = handle_excess(0, argv[i]);
+                    err_code = handle_excess(argv[i]);
                     goto error;
                 }
                 help(stderr);
@@ -177,7 +180,7 @@ int Parser::parse(int argc, char *argv[], void *input) {
 
             if (is_help && opt_s == "usage") {
                 if (is_eq) {
-                    err_code = handle_excess(0, argv[i]);
+                    err_code = handle_excess(argv[i]);
                     goto error;
                 }
                 usage(stderr);
@@ -192,7 +195,7 @@ int Parser::parse(int argc, char *argv[], void *input) {
 
             const auto *option = options[key];
             if (!option->arg && is_eq) {
-                err_code = handle_excess(0, argv[i]);
+                err_code = handle_excess(argv[i]);
                 goto error;
             }
 
@@ -208,7 +211,7 @@ int Parser::parse(int argc, char *argv[], void *input) {
         }
     }
 
-	// parse previous arguments if IN_ORDER is not set
+    // parse previous arguments if IN_ORDER is not set
     for (const auto arg : args) {
         argp->parse(Key::ARG, arg, this);
     }
@@ -260,7 +263,7 @@ int Parser::handle_missing(bool shrt, const char *argv) {
     exit(2);
 }
 
-int Parser::handle_excess(bool shrt, const char *argv) {
+int Parser::handle_excess(const char *argv) {
     if (m_flags & NO_ERRS) return argp->parse(Key::ERROR, 0, this);
 
     failure(this, 3, 0, "option '%s' doesn't allow an argument\n", argv);

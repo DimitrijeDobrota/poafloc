@@ -42,11 +42,11 @@ class Parser {
     Parser &operator=(Parser &&) = delete;
     ~Parser() noexcept = default;
 
-    int parse(int argc, char *argv[], void *input);
+    int parse(int argc, char *argv[]);
 
     int handle_unknown(bool shrt, const char *argv);
     int handle_missing(bool shrt, const char *argv);
-    int handle_excess(bool shrt, const char *argv);
+    int handle_excess(const char *argv);
 
     void print_other_usages(FILE *stream) const;
     void help(FILE *stream) const;

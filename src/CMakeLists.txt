@@ -6,10 +6,9 @@ set_target_properties(args PROPERTIES LINKER_LANGUAGE CXX)
 set_target_properties(args PROPERTIES
     VERSION ${PROJECT_VERSION}
     SOVERSION ${PROJECT_VERSION_MAJOR}
-    PUBLIC_HEADER ../include/args.hpp
-)
-
-install(TARGETS args
-    LIBRARY DESTINATION lib
-    PUBLIC_HEADER DESTINATION include
+	OUTPUT_NAME "args"
+	DEBUG_POSTFIX "d"
+    PUBLIC_HEADER "include/args.hpp;include/args.h"
+	MACOSX_RPATH ON
+	WINDOWS_EXPORT_ALL_SYMBOLS ON
 )
