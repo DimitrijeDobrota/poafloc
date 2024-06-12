@@ -26,8 +26,8 @@ bool Parser::help_entry_t::operator<(const help_entry_t &rhs) const {
                                              : '0';
 
     if (l1 != l2) return l1 < l2;
-
-    return std::strcmp(opt_long.front(), rhs.opt_long.front()) < 0;
+    if (!opt_long.empty() || !rhs.opt_long.empty()) return !opt_long.empty();
+	return std::strcmp(opt_long.front(), rhs.opt_long.front()) < 0;
 }
 
 void Parser::print_other_usages(FILE *stream) const {
