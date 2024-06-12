@@ -160,7 +160,7 @@ int Parser::parse(int argc, char *argv[]) {
                 if (opt[j + 1] != 0) {
                     argp->parse(key, opt + j + 1, this);
                     break;
-                } else if (!is_opt) argp->parse(key, nullptr, this);
+                } else if (is_opt) argp->parse(key, nullptr, this);
                 else if (i + 1 != argc) {
                     argp->parse(key, argv[++i], this);
                     break;
