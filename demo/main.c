@@ -13,7 +13,7 @@ typedef struct {
     int relocatable;
 } arguments_t;
 
-int parse_opt(int key, const char *arg, args_parser *parser) {
+int parse_opt(int key, const char *arg, args_parser_t *parser) {
     arguments_t *arguments = (arguments_t *)args_parser_input(parser);
 
     switch (key) {

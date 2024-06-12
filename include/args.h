@@ -15,7 +15,7 @@ extern "C" {
 namespace args {
 
 struct Parser;
-typedef Parser args_parser;
+typedef Parser args_parser_t;
 
 #else
 
@@ -28,7 +28,7 @@ typedef Parser args_parser;
 #define ENUM_PARSE args_parse_e
 
 struct __Parser;
-typedef struct __Parser args_parser;
+typedef struct __Parser args_parser_t;
 
 #endif
 
@@ -41,7 +41,7 @@ typedef struct {
     int group;
 } args_option_t;
 
-typedef int (*args_parse_f)(int key, const char *arg, args_parser *parser);
+typedef int (*args_parse_f)(int key, const char *arg, args_parser_t *parser);
 
 typedef struct {
     args_option_t const *options;
@@ -96,16 +96,16 @@ enum ENUM_PARSE {
 
 #if !defined __cplusplus || defined WITH_C_BINDINGS
 
-void *args_parser_input(args_parser *parser);
+void *args_parser_input(args_parser_t *parser);
 
-void args_usage(args_parser *parser);
+void args_usage(args_parser_t *parser);
 
-void argp_help(const args_parser *state, FILE *stream, unsigned flags);
+void args_help(const args_parser_t *state, FILE *stream, unsigned flags);
 
 int args_parse(const args_argp_t *argp, int argc, char *argv[], unsigned flags,
                void *input);
 
-void argp_failure(const args_parser *parser, int status, int errnum,
+void args_failure(const args_parser_t *parser, int status, int errnum,
                   const char *fmt, ...);
 
 #endif
