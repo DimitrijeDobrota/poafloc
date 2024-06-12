@@ -31,14 +31,15 @@ set(INSTALL_BINDIR ${CMAKE_INSTALL_BINDIR} CACHE PATH "Installation directory fo
 set(INSTALL_INCLUDEDIR ${CMAKE_INSTALL_INCLUDEDIR} CACHE PATH "Installation directory for header files")
 if(WIN32 AND NOT CYGWIN)
 	set(DEF_INSTALL_CMAKEDIR CMake)
+else()
 	set(DEF_INSTALL_CMAKEDIR share/cmake/${PROJECT_NAME})
 endif()
-set(INSTALL_CMAKEDIR ${CMAKE_INSTALL_CMAKEDIR} CACHE PATH "Installation directory for CMake files")
+set(INSTALL_CMAKEDIR ${DEF_INSTALL_CMAKEDIR} CACHE PATH "Installation directory for CMake files")
 
 message(STATUS "Build type set to ${CMAKE_BUILD_TYPE}")
 message(STATUS "Project will be installed to ${CMAKE_INSTALL_PREFIX}")
 foreach(p LIB BIN INCLUDE CMAKE)
-	file(TO_NATIVE_PATH ${CMAKE_INSTALL_PREFIX}/${ISNTALL_${p}DIR} _path)
+	file(TO_NATIVE_PATH ${CMAKE_INSTALL_PREFIX}/${INSTALL_${p}DIR} _path)
 	message(STATUS "installing ${p} components to ${_path}")
 	unset(_path)
 endforeach()
@@ -49,6 +50,8 @@ add_subdirectory(demo)
 install(
 	TARGETS
 		args
+	EXPORT
+		argsTargets
 	ARCHIVE
 		DESTINATION ${INSTALL_LIBDIR}
 		COMPONENT lib
@@ -61,4 +64,37 @@ install(
 	PUBLIC_HEADER
 		DESTINATION ${INSTALL_INCLUDEDIR}/args
 		COMPONENT dev
+)
+
+install(
+	EXPORT
+		argsTargets
+	NAMESPACE
+		"args::"
+	DESTINATION
+		${INSTALL_CMAKEDIR}
+	COMPONENT
+		dev
+)
+
+include(CMakePackageConfigHelpers)
+
+write_basic_package_version_file(
+	${CMAKE_CURRENT_BINARY_DIR}/argsConfigVersion.cmake
+	VERSION ${PROJECT_VERSION}
+	COMPATIBILITY SameMajorVersion
+)
+
+configure_package_config_file(
+	${PROJECT_SOURCE_DIR}/argsConfig.cmake.in
+	${CMAKE_CURRENT_BINARY_DIR}/argsConfig.cmake
+	INSTALL_DESTINATION ${INSTALL_CMAKEDIR}
+)
+
+install(
+	FILES
+		${CMAKE_CURRENT_BINARY_DIR}/argsConfig.cmake
+		${CMAKE_CURRENT_BINARY_DIR}/argsConfigVersion.cmake
+	DESTINATION
+		${INSTALL_CMAKEDIR}
 )

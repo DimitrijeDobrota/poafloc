@@ -1,5 +1,5 @@
 add_library(args STATIC args.cpp help.cpp trie.cpp c_bindings.cpp)
-target_include_directories(args PUBLIC ../include)
+target_include_directories(args PRIVATE ../include)
 target_compile_definitions(args PRIVATE WITH_C_BINDINGS)
 set_target_properties(args PROPERTIES LINKER_LANGUAGE CXX)
 
