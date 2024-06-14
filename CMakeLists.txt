@@ -2,9 +2,9 @@ cmake_minimum_required(VERSION 3.25.2)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 project(
-    args
-    VERSION 0.0.9
-    DESCRIPTION "Command Line Argument Parser"
+    poafloc
+    VERSION 1.0.0
+    DESCRIPTION "Parser Of Arguments For Lines Of Commands"
     LANGUAGES CXX C
 )
 
@@ -49,9 +49,9 @@ add_subdirectory(demo)
 
 install(
 	TARGETS
-		args
+		poafloc
 	EXPORT
-		argsTargets
+		poaflocTargets
 	ARCHIVE
 		DESTINATION ${INSTALL_LIBDIR}
 		COMPONENT lib
@@ -62,15 +62,15 @@ install(
 		DESTINATION ${INSTALL_LIBDIR}
 		COMPONENT lib
 	PUBLIC_HEADER
-		DESTINATION ${INSTALL_INCLUDEDIR}/args
+		DESTINATION ${INSTALL_INCLUDEDIR}/poafloc
 		COMPONENT dev
 )
 
 install(
 	EXPORT
-		argsTargets
+		poaflocTargets
 	NAMESPACE
-		"args::"
+		"poafloc::"
 	DESTINATION
 		${INSTALL_CMAKEDIR}
 	COMPONENT
@@ -80,21 +80,21 @@ install(
 include(CMakePackageConfigHelpers)
 
 write_basic_package_version_file(
-	${CMAKE_CURRENT_BINARY_DIR}/argsConfigVersion.cmake
+	${CMAKE_CURRENT_BINARY_DIR}/poaflocConfigVersion.cmake
 	VERSION ${PROJECT_VERSION}
 	COMPATIBILITY SameMajorVersion
 )
 
 configure_package_config_file(
-	${PROJECT_SOURCE_DIR}/argsConfig.cmake.in
-	${CMAKE_CURRENT_BINARY_DIR}/argsConfig.cmake
+	${PROJECT_SOURCE_DIR}/poaflocConfig.cmake.in
+	${CMAKE_CURRENT_BINARY_DIR}/poaflocConfig.cmake
 	INSTALL_DESTINATION ${INSTALL_CMAKEDIR}
 )
 
 install(
 	FILES
-		${CMAKE_CURRENT_BINARY_DIR}/argsConfig.cmake
-		${CMAKE_CURRENT_BINARY_DIR}/argsConfigVersion.cmake
+		${CMAKE_CURRENT_BINARY_DIR}/poaflocConfig.cmake
+		${CMAKE_CURRENT_BINARY_DIR}/poaflocConfigVersion.cmake
 	DESTINATION
 		${INSTALL_CMAKEDIR}
 )

@@ -1,19 +1,19 @@
-#ifndef ARGS_HPP
-#define ARGS_HPP
+#ifndef POAFLOC_POAFLOC_HPP
+#define POAFLOC_POAFLOC_HPP
 
-#include "args.h"
+#include "poafloc.h"
 
 #include <cstdarg>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
-namespace args {
+namespace poafloc {
 
-using option_t = args_option_t;
-using argp_t = args_argp_t;
+using option_t = poafloc_option_t;
+using arg_t = poafloc_arg_t;
 
-int parse(const argp_t *argp, int argc, char *argv[], unsigned flags,
+int parse(const arg_t *argp, int argc, char *argv[], unsigned flags,
           void *input) noexcept;
 
 void usage(const Parser *parser);
@@ -32,10 +32,10 @@ class Parser {
     unsigned flags() const { return m_flags; }
 
   private:
-    friend int parse(const argp_t *, int, char **, unsigned, void *) noexcept;
+    friend int parse(const arg_t *, int, char **, unsigned, void *) noexcept;
     friend void help(const Parser *parser, FILE *stream, unsigned flags);
 
-    Parser(const argp_t *argp, unsigned flags, void *input);
+    Parser(const arg_t *argp, unsigned flags, void *input);
     Parser(const Parser &) = delete;
     Parser(Parser &&) = delete;
     Parser &operator=(const Parser &) = delete;
@@ -95,7 +95,7 @@ class Parser {
         bool terminal = false;
     };
 
-    const argp_t *argp;
+    const arg_t *argp;
     unsigned m_flags;
     void *m_input;
 
@@ -106,6 +106,6 @@ class Parser {
     trie_t trie;
 };
 
-} // namespace args
+} // namespace poafloc
 
 #endif

@@ -1,4 +1,4 @@
-#include "args.h"
+#include "poafloc.h"
 
 #include <stdio.h>
 
@@ -13,8 +13,8 @@ typedef struct {
     int relocatable;
 } arguments_t;
 
-int parse_opt(int key, const char *arg, args_parser_t *parser) {
-    arguments_t *arguments = (arguments_t *)args_parser_input(parser);
+int parse_opt(int key, const char *arg, poafloc_parser_t *parser) {
+    arguments_t *arguments = (arguments_t *)poafloc_parser_input(parser);
 
     switch (key) {
     case 777: arguments->debug = 1; break;
@@ -29,8 +29,8 @@ int parse_opt(int key, const char *arg, args_parser_t *parser) {
     case 'o': arguments->output_file = arg ? arg : "stdout"; break;
     case 'i': arguments->input_file = arg; break;
     // case Parser::Key::ARG: arguments->args.push_back(arg); break;
-    case ARGS_KEY_ERROR: fprintf(stderr, "handled error\n");
-    case ARGS_KEY_INIT:
+    case POAFLOC_KEY_ERROR: fprintf(stderr, "handled error\n");
+    case POAFLOC_KEY_INIT:
         arguments->input_file = "stdin";
         arguments->output_file = "stdout";
     }
@@ -39,22 +39,22 @@ int parse_opt(int key, const char *arg, args_parser_t *parser) {
 }
 
 // clang-format off
-static const args_option_t options[] = {
+static const poafloc_option_t options[] = {
     {           0,  'R',      0,                        0,        "random 0-group option"},
     {           0,    0,      0,                        0,                 "Program mode", 1},
     {"relocatable", 'r',      0,                        0, "Output in relocatable format"},
     {        "hex", 'h',      0,                        0,         "Output in hex format"},
-    {"hexadecimal",   0,      0,  ARGS_OPTION_ALIAS | ARGS_OPTION_HIDDEN},
+    {"hexadecimal",   0,      0,  POAFLOC_OPTION_ALIAS | POAFLOC_OPTION_HIDDEN},
     {            0,   0,      0,                        0,               "For developers", 4},
     {      "debug", 777,      0,                        0,        "Enable debugging mode"},
     {            0,   0,      0,                        0,                 "Input/output", 3},
-    {     "output", 'o', "file", ARGS_OPTION_ARG_OPTIONAL,  "Output file, default stdout"},
+    {     "output", 'o', "file", POAFLOC_OPTION_ARG_OPTIONAL,  "Output file, default stdout"},
     {            0, 'i', "file",                        0,                  "Input  file"},
     {            0,   0,      0,                        0,        "Informational Options", -1},
     {0},
 };
 
-static const args_argp_t argp = {
+static const poafloc_arg_t argp = {
 	options, parse_opt, "doc string\nother usage",
 	"First half of the message\vsecond half of the message"
 };
@@ -63,7 +63,7 @@ static const args_argp_t argp = {
 int main(int argc, char *argv[]) {
     arguments_t arguments = {0};
 
-    if (args_parse(&argp, argc, argv, 0, &arguments)) {
+    if (poafloc_parse(&argp, argc, argv, 0, &arguments)) {
         error("There was an error while parsing arguments");
         return 1;
     }

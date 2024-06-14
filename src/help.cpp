@@ -1,10 +1,10 @@
-#include "args.hpp"
+#include "poafloc.hpp"
 
 #include <cstring>
 #include <format>
 #include <sstream>
 
-namespace args {
+namespace poafloc {
 
 bool Parser::help_entry_t::operator<(const help_entry_t &rhs) const {
     if (group != rhs.group) {

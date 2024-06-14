@@ -1,4 +1,4 @@
-#include "args.hpp"
+#include "poafloc.hpp"
 
 #include <algorithm>
 #include <cstring>
@@ -6,9 +6,9 @@
 #include <iostream>
 #include <sstream>
 
-namespace args {
+namespace poafloc {
 
-int parse(const argp_t *argp, int argc, char *argv[], unsigned flags,
+int parse(const arg_t *argp, int argc, char *argv[], unsigned flags,
           void *input) noexcept {
     Parser parser(argp, flags, input);
     return parser.parse(argc, argv);
@@ -44,7 +44,7 @@ void failure(const Parser *parser, int status, int errnum, const char *fmt,
     va_end(args);
 }
 
-Parser::Parser(const argp_t *argp, unsigned flags, void *input)
+Parser::Parser(const arg_t *argp, unsigned flags, void *input)
     : argp(argp), m_flags(flags), m_input(input) {
     int group = 0, key_last = 0;
     bool hidden = false;
@@ -145,7 +145,7 @@ int Parser::parse(int argc, char *argv[]) {
                 const char key = opt[j];
 
                 if (is_help && key == '?') {
-                    if (is_error) ::args::help(this, stderr, STD_HELP);
+                    if (is_error) ::poafloc::help(this, stderr, STD_HELP);
                     continue;
                 }
 
@@ -180,7 +180,7 @@ int Parser::parse(int argc, char *argv[]) {
                     err_code = handle_excess(argv[i]);
                     goto error;
                 }
-                if (is_error) ::args::help(this, stderr, STD_HELP);
+                if (is_error) ::poafloc::help(this, stderr, STD_HELP);
                 continue;
             }
 
@@ -189,7 +189,7 @@ int Parser::parse(int argc, char *argv[]) {
                     err_code = handle_excess(argv[i]);
                     goto error;
                 }
-                if (is_error) ::args::help(this, stderr, STD_USAGE);
+                if (is_error) ::poafloc::help(this, stderr, STD_USAGE);
                 continue;
             }
 

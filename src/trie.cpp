@@ -1,8 +1,8 @@
-#include "args.hpp"
+#include "poafloc.hpp"
 
 #include <cstdint>
 
-namespace args {
+namespace poafloc {
 
 Parser::trie_t::~trie_t() noexcept {
     for (uint8_t i = 0; i < 26; i++) {

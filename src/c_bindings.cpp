@@ -1,24 +1,24 @@
-#include "args.h"
-#include "args.hpp"
+#include "poafloc.h"
+#include "poafloc.hpp"
 
 #include <cstdarg>
 
-namespace args {
+namespace poafloc {
 
-int args_parse(const args_argp_t *argp, int argc, char *argv[], unsigned flags,
+int poafloc_parse(const poafloc_arg_t *argp, int argc, char *argv[], unsigned flags,
                void *input) {
     return parse(argp, argc, argv, flags, input);
 }
 
-void *args_parser_input(args_parser_t *parser) { return parser->input(); }
+void *poafloc_parser_input(poafloc_parser_t *parser) { return parser->input(); }
 
-void args_usage(args_parser_t *parser) { return usage(parser); }
+void poafloc_usage(poafloc_parser_t *parser) { return usage(parser); }
 
-void args_help(const args_parser_t *parser, FILE *stream, unsigned flags) {
+void poafloc_help(const poafloc_parser_t *parser, FILE *stream, unsigned flags) {
     help(parser, stream, flags);
 }
 
-void args_failure(const args_parser_t *parser, int status, int errnum,
+void poafloc_failure(const poafloc_parser_t *parser, int status, int errnum,
                   const char *fmt, ...) {
     std::va_list args;
     va_start(args, fmt);

@@ -1,10 +1,10 @@
-#include "args.hpp"
+#include "poafloc.hpp"
 
 #include <cstdint>
 #include <iostream>
 #include <vector>
 
-using namespace args;
+using namespace poafloc;
 
 void error(const std::string &message) { std::cerr << message << std::endl; }
 struct arguments_t {
@@ -56,7 +56,7 @@ static const option_t options[] = {
     {0},
 };
 
-static const argp_t argp = {
+static const arg_t argp = {
 	options, parse_opt, "doc string\nother usage",
 	"First half of the message\vsecond half of the message"
 };

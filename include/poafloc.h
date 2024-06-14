@@ -1,5 +1,5 @@
-#ifndef ARGS_H
-#define ARGS_H
+#ifndef POAFLOC_POAFLOC_H
+#define POAFLOC_POAFLOC_H
 
 #ifdef __cplusplus
 
@@ -12,23 +12,23 @@
 #define ENUM_PARSE Parse
 
 extern "C" {
-namespace args {
+namespace poafloc {
 
 struct Parser;
-typedef Parser args_parser_t;
+typedef Parser poafloc_parser_t;
 
 #else
 
 #include <stdio.h>
 
-#define MANGLE_ENUM(enumn, name) ARGS_##enumn##_##name
-#define ENUM_OPTION args_option_e
-#define ENUM_KEY args_key_e
-#define ENUM_HELP args_help_e
-#define ENUM_PARSE args_parse_e
+#define MANGLE_ENUM(enumn, name) POAFLOC_##enumn##_##name
+#define ENUM_OPTION poafloc_option_e
+#define ENUM_KEY poafloc_key_e
+#define ENUM_HELP poafloc_help_e
+#define ENUM_PARSE poafloc_parse_e
 
 struct __Parser;
-typedef struct __Parser args_parser_t;
+typedef struct __Parser poafloc_parser_t;
 
 #endif
 
@@ -39,16 +39,16 @@ typedef struct {
     int flags;
     char const *message;
     int group;
-} args_option_t;
+} poafloc_option_t;
 
-typedef int (*args_parse_f)(int key, const char *arg, args_parser_t *parser);
+typedef int (*poafloc_parse_f)(int key, const char *arg, poafloc_parser_t *parser);
 
 typedef struct {
-    args_option_t const *options;
-    args_parse_f parse;
+    poafloc_option_t const *options;
+    poafloc_parse_f parse;
     char const *doc;
     char const *message;
-} args_argp_t;
+} poafloc_arg_t;
 
 enum ENUM_OPTION {
     MANGLE_ENUM(OPTION, ARG_OPTIONAL) = 0x1,
@@ -87,7 +87,6 @@ enum ENUM_HELP {
 
 enum ENUM_PARSE {
     MANGLE_ENUM(PARSE, NO_ERRS) = 0x1,
-    // MANGLE_ENUM(PARSE, NO_ARGS),
     MANGLE_ENUM(PARSE, NO_HELP) = 0x2,
     MANGLE_ENUM(PARSE, NO_EXIT) = 0x4,
     MANGLE_ENUM(PARSE, SILENT) = 0x8,
@@ -96,16 +95,16 @@ enum ENUM_PARSE {
 
 #if !defined __cplusplus || defined WITH_C_BINDINGS
 
-void *args_parser_input(args_parser_t *parser);
+void *poafloc_parser_input(poafloc_parser_t *parser);
 
-void args_usage(args_parser_t *parser);
+void poafloc_usage(poafloc_parser_t *parser);
 
-void args_help(const args_parser_t *state, FILE *stream, unsigned flags);
+void poafloc_help(const poafloc_parser_t *state, FILE *stream, unsigned flags);
 
-int args_parse(const args_argp_t *argp, int argc, char *argv[], unsigned flags,
+int poafloc_parse(const poafloc_arg_t *argp, int argc, char *argv[], unsigned flags,
                void *input);
 
-void args_failure(const args_parser_t *parser, int status, int errnum,
+void poafloc_failure(const poafloc_parser_t *parser, int status, int errnum,
                   const char *fmt, ...);
 
 #endif
@@ -115,7 +114,7 @@ void args_failure(const args_parser_t *parser, int status, int errnum,
 #undef ENUM_KEY
 
 #ifdef __cplusplus
-} // namespace args
+} // namespace poafloc
 } // extern "C"
 #endif
 
