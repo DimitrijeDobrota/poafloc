@@ -2,7 +2,6 @@
 
 Command-line argument parser for C and C++ written in C++20
 
-
 ## Description
 
 This project is heavily inspired by GNU argp and the initial goal was to have
@@ -21,43 +20,23 @@ both languages simultaneously. There were a lot of caveats and edge cases to
 be understood first, and later implemented.
 
 
-## Getting Started
+## Dependencies
 
-### Dependencies
-
-- Linux
-    * CMake 3.25.2 or latter
-    * Compiler with C++20 support (tested: clang 16.0.5, gcc 13.2.0)
-
-- Windows
-	* Not tested
+* CMake 3.25.2 or latter
+* Compiler with C++20 support (tested: clang 16.0.5, gcc 13.2.0)
 
 
-### Installing
+## Building and installing
 
-* Clone the repo
-* Make a build folder and cd into it
-* Run `cmake <path to cloned repo>` to set up the build scripts [Release mode]
-* Run `make` to build the project
-* Run `cmake --build . --target install` to install the project
+See the [BUILDING](BUILDING.md) document.
 
 
-### Using the library
+## Usage
 
-- Cmake:
-	* Add `find_package(poafloc 1 CONFIG REQUIRED)` to the top level CMakeLists.txt
-	* Add `poafloc` to `target_link_libraries` of the desired target
-
-- Other:
-	* Link against `poafloc` with `-lpoafloc`
+> Please reference example folder for relevant usage example.
 
 
-### Usage
-
-> Please reference demo folder for relevant usage example.
-
-
-### Help
+## Help
 
 Refer to [GNU argp documentation](https://www.gnu.org/software/libc/manual/html_node/Argp.html)
 
@@ -68,9 +47,15 @@ Refer to [GNU argp documentation](https://www.gnu.org/software/libc/manual/html_
     * Initial Release
 
 
+## Contributing
+
+See the [CONTRIBUTING](CONTRIBUTING.md) document.
+
+
 ## License
 
-This project is licensed under the MIT License - see the LICENSE.md file for details
+This project is licensed under the MIT License -
+see the [LICENSE](LICENSE.md) document for details
 
 
 ## Acknowledgments

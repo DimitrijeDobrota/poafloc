@@ -1,100 +1,89 @@
-cmake_minimum_required(VERSION 3.25.2)
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+cmake_minimum_required(VERSION 3.14)
+
+include(cmake/prelude.cmake)
 
 project(
     poafloc
-    VERSION 1.0.0
+    VERSION 1.0.1
     DESCRIPTION "Parser Of Arguments For Lines Of Commands"
-    LANGUAGES CXX C
+    HOMEPAGE_URL "https://git.dimitrijedobrota.com/poafloc.git"
+    LANGUAGES C CXX
 )
 
-set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_EXTENSIONS OFF)
+include(cmake/project-is-top-level.cmake)
+include(cmake/variables.cmake)
 
-set(CMAKE_C_STANDARD 17)
-set(CMAKE_C_STANDARD_REQUIRED ON)
-set(CMAKE_C_EXTENSIONS OFF)
+# ---- Declare library ----
 
-if(NOT CMAKE_BUILD_TYPE)
-	set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
+add_library(
+    poafloc_poafloc
+    source/poafloc.cpp
+    source/c_bindings.cpp
+    source/help.cpp
+    source/trie.cpp
+)
+add_library(poafloc::poafloc ALIAS poafloc_poafloc)
+
+include(GenerateExportHeader)
+generate_export_header(
+    poafloc_poafloc
+    BASE_NAME poafloc
+    EXPORT_FILE_NAME export/poafloc/poafloc_export.hpp
+    CUSTOM_CONTENT_FROM_VARIABLE pragma_suppress_c4251
+)
+
+if(NOT BUILD_SHARED_LIBS)
+  target_compile_definitions(poafloc_poafloc PUBLIC POAFLOC_STATIC_DEFINE)
 endif()
 
-include(GNUInstallDirs)
+set_target_properties(
+    poafloc_poafloc PROPERTIES
+    CXX_VISIBILITY_PRESET hidden
+    VISIBILITY_INLINES_HIDDEN YES
+    VERSION "${PROJECT_VERSION}"
+    SOVERSION "${PROJECT_VERSION_MAJOR}"
+    EXPORT_NAME poafloc
+    OUTPUT_NAME poafloc
+)
 
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/${CMAKE_INSTALL_LIBDIR})
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/${CMAKE_INSTALL_LIBDIR})
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/${CMAKE_INSTALL_BINDIR})
+target_include_directories(
+    poafloc_poafloc ${warning_guard}
+    PUBLIC
+    "\$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>"
+)
 
-set(INSTALL_LIBDIR ${CMAKE_INSTALL_LIBDIR} CACHE PATH "Installation directory for libraries")
-set(INSTALL_BINDIR ${CMAKE_INSTALL_BINDIR} CACHE PATH "Installation directory for executables")
-set(INSTALL_INCLUDEDIR ${CMAKE_INSTALL_INCLUDEDIR} CACHE PATH "Installation directory for header files")
-if(WIN32 AND NOT CYGWIN)
-	set(DEF_INSTALL_CMAKEDIR CMake)
-else()
-	set(DEF_INSTALL_CMAKEDIR share/cmake/${PROJECT_NAME})
+target_include_directories(
+    poafloc_poafloc SYSTEM
+    PUBLIC
+    "\$<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/export>"
+)
+
+target_compile_features(poafloc_poafloc PUBLIC cxx_std_20)
+
+# ---- Install rules ----
+
+if(NOT CMAKE_SKIP_INSTALL_RULES)
+  include(cmake/install-rules.cmake)
 endif()
-set(INSTALL_CMAKEDIR ${DEF_INSTALL_CMAKEDIR} CACHE PATH "Installation directory for CMake files")
 
-message(STATUS "Build type set to ${CMAKE_BUILD_TYPE}")
-message(STATUS "Project will be installed to ${CMAKE_INSTALL_PREFIX}")
-foreach(p LIB BIN INCLUDE CMAKE)
-	file(TO_NATIVE_PATH ${CMAKE_INSTALL_PREFIX}/${INSTALL_${p}DIR} _path)
-	message(STATUS "installing ${p} components to ${_path}")
-	unset(_path)
-endforeach()
+# ---- Examples ----
 
-add_subdirectory(src)
-add_subdirectory(demo)
+if(PROJECT_IS_TOP_LEVEL)
+  option(BUILD_EXAMPLES "Build examples tree." "${poafloc_DEVELOPER_MODE}")
+  if(BUILD_EXAMPLES)
+    add_subdirectory(example)
+  endif()
+endif()
 
-install(
-	TARGETS
-		poafloc
-	EXPORT
-		poaflocTargets
-	ARCHIVE
-		DESTINATION ${INSTALL_LIBDIR}
-		COMPONENT lib
-	RUNTIME
-		DESTINATION ${INSTALL_BINDIR}
-		COMPONENT bin
-	LIBRARY
-		DESTINATION ${INSTALL_LIBDIR}
-		COMPONENT lib
-	PUBLIC_HEADER
-		DESTINATION ${INSTALL_INCLUDEDIR}/poafloc
-		COMPONENT dev
-)
+# ---- Developer mode ----
 
-install(
-	EXPORT
-		poaflocTargets
-	NAMESPACE
-		"poafloc::"
-	DESTINATION
-		${INSTALL_CMAKEDIR}
-	COMPONENT
-		dev
-)
+if(NOT poafloc_DEVELOPER_MODE)
+  return()
+elseif(NOT PROJECT_IS_TOP_LEVEL)
+  message(
+      AUTHOR_WARNING
+      "Developer mode is intended for developers of poafloc"
+  )
+endif()
 
-include(CMakePackageConfigHelpers)
-
-write_basic_package_version_file(
-	${CMAKE_CURRENT_BINARY_DIR}/poaflocConfigVersion.cmake
-	VERSION ${PROJECT_VERSION}
-	COMPATIBILITY SameMajorVersion
-)
-
-configure_package_config_file(
-	${PROJECT_SOURCE_DIR}/poaflocConfig.cmake.in
-	${CMAKE_CURRENT_BINARY_DIR}/poaflocConfig.cmake
-	INSTALL_DESTINATION ${INSTALL_CMAKEDIR}
-)
-
-install(
-	FILES
-		${CMAKE_CURRENT_BINARY_DIR}/poaflocConfig.cmake
-		${CMAKE_CURRENT_BINARY_DIR}/poaflocConfigVersion.cmake
-	DESTINATION
-		${INSTALL_CMAKEDIR}
-)
+include(cmake/dev-mode.cmake)
