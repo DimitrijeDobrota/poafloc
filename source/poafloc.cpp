@@ -103,7 +103,7 @@ Parser::Parser(const arg_t* argp, unsigned flags, void* input)
     else
     {
       // duplicate key, silently ignoring
-      if (!m_options.contains(opt.key)) continue;
+      if (m_options.contains(opt.key)) continue;
 
       if (opt.name != nullptr) m_trie.insert(opt.name, opt.key);
       m_options[key_last = opt.key] = &opt;
@@ -204,26 +204,33 @@ int Parser::parse(std::size_t argc, char* argv[])
 
         const auto* option = m_options[key];
         bool const is_opt  = (option->flags & ARG_OPTIONAL) != 0;
+
         if (option->arg == nullptr)
         {
           m_argp->parse(key, nullptr, this);
+          continue;
         }
+
         if (opt[j + 1] != 0)
         {
           m_argp->parse(key, opt.substr(j + 1).c_str(), this);
           break;
         }
-        if (is_opt) m_argp->parse(key, nullptr, this);
-        else if (idx + 1 != argc)
+
+        if (is_opt)
+        {
+          m_argp->parse(key, nullptr, this);
+          continue;
+        }
+
+        if (idx + 1 != argc)
         {
           m_argp->parse(key, args[++idx], this);
           break;
         }
-        else
-        {
-          err_code = handle_missing(true, args[idx]);
-          goto error;
-        }
+
+        err_code = handle_missing(true, args[idx]);
+        goto error;
       }
     }
     else
@@ -320,6 +327,7 @@ int Parser::parse(std::size_t argc, char* argv[])
   return 0;
 
 error:
+  m_argp->parse(Key::ERROR, nullptr, this);
   return err_code;
 }
 
@@ -329,7 +337,7 @@ int Parser::handle_unknown(bool shrt, const char* argv)
     return m_argp->parse(Key::ERROR, nullptr, this);
 
   static const char* const unknown_fmt[2] = {
-      "unrem_argpized option '-%s'\n",
+      "unrecognized option '-%s'\n",
       "invalid option -- '%s'\n",
   };
 

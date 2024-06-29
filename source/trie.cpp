@@ -9,10 +9,7 @@ bool Parser::trie_t::insert(const std::string& option, int key)
 {
   trie_t* crnt = this;
 
-  if (!is_valid(option))
-  {
-    return false;
-  }
+  if (!is_valid(option)) return false;
 
   for (const char chr : option)
   {
@@ -36,10 +33,7 @@ int Parser::trie_t::get(const std::string& option) const
 {
   const trie_t* crnt = this;
 
-  if (!is_valid(option))
-  {
-    return 0;
-  }
+  if (!is_valid(option)) return 0;
 
   for (const char chr : option)
   {
@@ -49,10 +43,7 @@ int Parser::trie_t::get(const std::string& option) const
     crnt = crnt->m_children.at(idx).get();
   }
 
-  if (!crnt->m_terminal && crnt->m_count > 1)
-  {
-    return 0;
-  }
+  if (!crnt->m_terminal && crnt->m_count > 1) return 0;
   return crnt->m_key;
 }
 
