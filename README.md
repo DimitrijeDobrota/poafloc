@@ -43,6 +43,11 @@ Refer to [GNU argp documentation](https://www.gnu.org/software/libc/manual/html_
 
 ## Version History
 
+- 1.1
+    * Modernize CMake project
+    * Modernize codebase
+    * Add test suite
+
 - 1.0
     * Initial Release
 
