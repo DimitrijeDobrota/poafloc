@@ -4,7 +4,7 @@ include(cmake/prelude.cmake)
 
 project(
     poafloc
-    VERSION 1.1.0
+    VERSION 1.2.0
     DESCRIPTION "Parser Of Arguments For Lines Of Commands"
     HOMEPAGE_URL "https://git.dimitrijedobrota.com/poafloc.git"
     LANGUAGES C CXX

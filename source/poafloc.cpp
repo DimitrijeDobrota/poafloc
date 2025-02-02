@@ -171,7 +171,11 @@ int Parser::parse(std::size_t argc, char* argv[])
   {
     if (args[idx][0] != '-')
     {
-      if ((m_flags & IN_ORDER) != 0U) m_argp->parse(Key::ARG, args[idx], this);
+      if ((m_flags & IN_ORDER) != 0U)
+      {
+        err_code = m_argp->parse(Key::ARG, args[idx], this);
+        if (err_code != 0) goto error;
+      }
       else args_free.push_back(args[idx]);
 
       arg_cnt++;
@@ -207,25 +211,29 @@ int Parser::parse(std::size_t argc, char* argv[])
 
         if (option->arg == nullptr)
         {
-          m_argp->parse(key, nullptr, this);
+          err_code = m_argp->parse(key, nullptr, this);
+          if (err_code != 0) goto error;
           continue;
         }
 
         if (opt[j + 1] != 0)
         {
-          m_argp->parse(key, opt.substr(j + 1).c_str(), this);
+          err_code = m_argp->parse(key, opt.substr(j + 1).c_str(), this);
+          if (err_code != 0) goto error;
           break;
         }
 
         if (is_opt)
         {
-          m_argp->parse(key, nullptr, this);
+          err_code = m_argp->parse(key, nullptr, this);
+          if (err_code != 0) goto error;
           continue;
         }
 
         if (idx + 1 != argc)
         {
-          m_argp->parse(key, args[++idx], this);
+          err_code = m_argp->parse(key, args[++idx], this);
+          if (err_code != 0) goto error;
           break;
         }
 
@@ -282,25 +290,29 @@ int Parser::parse(std::size_t argc, char* argv[])
 
       if (option->arg == nullptr)
       {
-        m_argp->parse(key, nullptr, this);
+        err_code = m_argp->parse(key, nullptr, this);
+        if (err_code != 0) goto error;
         continue;
       }
 
       if (pos != std::string::npos)
       {
-        m_argp->parse(key, arg.c_str(), this);
+        err_code = m_argp->parse(key, arg.c_str(), this);
+        if (err_code != 0) goto error;
         continue;
       }
 
       if (is_opt)
       {
-        m_argp->parse(key, nullptr, this);
+        err_code = m_argp->parse(key, nullptr, this);
+        if (err_code != 0) goto error;
         continue;
       }
 
       if (idx + 1 != argc)
       {
-        m_argp->parse(key, args[++idx], this);
+        err_code = m_argp->parse(key, args[++idx], this);
+        if (err_code != 0) goto error;
         continue;
       }
 
@@ -310,19 +322,27 @@ int Parser::parse(std::size_t argc, char* argv[])
   }
 
   // parse previous arguments if IN_ORDER is not set
-  for (const auto* const arg : args_free) m_argp->parse(Key::ARG, arg, this);
+  for (const auto* const arg : args_free)
+  {
+    err_code = m_argp->parse(Key::ARG, arg, this);
+    if (err_code != 0) goto error;
+  }
 
   // parse rest argv as normal arguments
   for (idx = idx + 1; idx < argc; idx++)
   {
-    m_argp->parse(Key::ARG, args[idx], this);
+    err_code = m_argp->parse(Key::ARG, args[idx], this);
+    if (err_code != 0) goto error;
     arg_cnt++;
   }
 
   if (arg_cnt == 0) m_argp->parse(Key::NO_ARGS, nullptr, this);
 
-  m_argp->parse(Key::END, nullptr, this);
-  m_argp->parse(Key::SUCCESS, nullptr, this);
+  err_code = m_argp->parse(Key::END, nullptr, this);
+  if (err_code != 0) goto error;
+
+  err_code = m_argp->parse(Key::SUCCESS, nullptr, this);
+  if (err_code != 0) goto error;
 
   return 0;
 
