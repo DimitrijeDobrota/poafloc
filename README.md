@@ -22,18 +22,18 @@ be understood first, and later implemented.
 
 ## Dependencies
 
-* CMake 3.25.2 or latter
-* Compiler with C++20 support (tested: clang 16.0.5, gcc 13.2.0)
+* CMake 3.14 or latter
+* Compiler with C++20 support (tested on clang version 19.1.7)
 
 
 ## Building and installing
 
-See the [BUILDING](BUILDING.md) document.
+See the [`BUILDING`](BUILDING.md) document.
 
 
 ## Usage
 
-> Please reference example folder for relevant usage example.
+> Please reference example folder for relevant usage examples.
 
 
 ## Help
@@ -57,13 +57,12 @@ Refer to [GNU argp documentation](https://www.gnu.org/software/libc/manual/html_
 
 ## Contributing
 
-See the [CONTRIBUTING](CONTRIBUTING.md) document.
+See the [`CONTRIBUTING`](CONTRIBUTING.md) document.
 
 
 ## License
 
-This project is licensed under the MIT License -
-see the [LICENSE](LICENSE.md) document for details
+This project is licensed under the MIT License - see the [`LICENSE`](LICENSE.md) file for details
 
 
 ## Acknowledgments

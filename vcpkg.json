@@ -1,0 +1,13 @@
+{
+  "name": "poafloc",
+  "version-semver": "1.2.0",
+  "dependencies": [],
+  "default-features": [],
+  "features": {
+    "test": {
+      "description": "Dependencies for testing",
+      "dependencies": []
+    }
+  },
+  "builtin-baseline": "eba7c6a894fce24146af4fdf161fef8e90dd6be3"
+}
