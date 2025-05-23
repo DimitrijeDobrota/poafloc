@@ -13,6 +13,8 @@
 #include <string_view>
 #include <vector>
 
+#include "poafloc/error.hpp"
+
 namespace poafloc
 {
 
@@ -141,19 +143,12 @@ struct option_base
   static auto convert(char chr)
   {
     if (!is_valid(chr)) {
-      invalid_char(chr);
+      throw error<error_t::invalid_char>(chr);
     }
 
     return mapping[static_cast<container_type::size_type>(
         static_cast<unsigned char>(chr)
     )];
-  }
-
-  [[noreturn]] static void invalid_char(char c)
-  {
-    throw std::runtime_error {
-        std::format("Invalid char in option: {}", c),
-    };
   }
 };
 
@@ -282,23 +277,17 @@ class parser
 
       if (str[1] != '-') {
         if (std::size(str) != 2) {
-          throw std::runtime_error {std::format(
-              "Short option requires one character: {}", str.substr(1)
-          )};
+          continue;
         }
 
         const auto opt = str[1];
         if (!m_opt_short.set(opt, std::size(m_options))) {
-          throw std::runtime_error {
-              std::format("Duplicate short option: {}", opt)
-          };
+          throw error<error_t::duplicate_option>(opt);
         }
       } else {
         const auto opt = str.substr(2);
         if (!m_opt_long.set(opt, std::size(m_options))) {
-          throw std::runtime_error {
-              std::format("Duplicate long option: {}", opt)
-          };
+          throw error<error_t::duplicate_option>(opt);
         }
       }
     }
@@ -310,7 +299,7 @@ class parser
   {
     const auto idx = m_opt_short.get(opt);
     if (!idx.has_value()) {
-      unknown_option(opt);
+      throw error<error_t::unknown_option>(opt);
     }
     return m_options[idx.value()];
   }
@@ -319,33 +308,9 @@ class parser
   {
     const auto idx = m_opt_long.get(opt);
     if (!idx.has_value()) {
-      unknown_option(opt);
+      throw error<error_t::unknown_option>(opt);
     }
     return m_options[idx.value()];
-  }
-
-  template<class T>
-  [[noreturn]] static void missing_argument(T opt)
-  {
-    throw std::runtime_error {
-        std::format("Missing argument for option: {}", opt)
-    };
-  }
-
-  template<class T>
-  [[noreturn]] static void superfluous_argument(T opt)
-  {
-    throw std::runtime_error {
-        std::format("Option doesn't require an  argument: {}", opt)
-    };
-  }
-
-  template<class T>
-  [[noreturn]] static void unknown_option(T opt)
-  {
-    throw std::runtime_error {
-        std::format("Unknown option: {}", opt),
-    };
   }
 
   [[noreturn]] static void unhandled_positional(std::string_view arg)
@@ -424,12 +389,12 @@ class parser
     const auto option = get_option(opt);
 
     if (!option.argument()) {
-      superfluous_argument(opt);
+      throw error<error_t::superfluous_argument>(opt);
     }
 
     const auto arg = mix.substr(equal + 1);
     if (arg.empty()) {
-      missing_argument(opt);
+      throw error<error_t::missing_argument>(opt);
     }
 
     option(record, arg);
@@ -459,7 +424,7 @@ public:
       const auto arg_raw = args[arg_idx];
 
       if (arg_raw.size() < 2) {
-        unknown_option(arg_raw);
+        throw error<error_t::unknown_option>(arg_raw);
       }
 
       if (arg_raw == "--") {
@@ -491,7 +456,7 @@ public:
               arg_idx++;
               break;
             case short_res::missing:
-              missing_argument(arg);
+              throw error<error_t::missing_argument>(arg);
               break;
           }
 
@@ -515,7 +480,7 @@ public:
             arg_idx++;
             break;
           case long_res::missing:
-            missing_argument(arg);
+            throw error<error_t::missing_argument>(arg);
             break;
         }
       }
