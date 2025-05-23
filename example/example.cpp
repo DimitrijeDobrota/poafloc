@@ -31,27 +31,27 @@ int main()
 
   const auto program = parser<arguments> {
       option {
-          "-v --value",
+          "v value",
           &arguments::val,
       },
       option {
-          "-m --multiply",
+          "m multiply",
           &arguments::mul,
       },
       option {
-          "-n --name",
+          "n name",
           &arguments::name,
       },
       option {
-          "-p --priv",
+          "p priv",
           &arguments::set_priv,
       },
       option {
-          "-f --flag1",
+          "f flag1",
           &arguments::flag1,
       },
       option {
-          "-F --flag2",
+          "F flag2",
           &arguments::flag2,
       },
   };

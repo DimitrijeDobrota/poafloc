@@ -271,21 +271,13 @@ class parser
     std::string str;
 
     while (std::getline(istr, str, ' ')) {
-      if (std::size(str) < 2 || str[0] != '-') {
-        continue;
-      }
-
-      if (str[1] != '-') {
-        if (std::size(str) != 2) {
-          continue;
-        }
-
-        const auto opt = str[1];
+      if (std::size(str) == 1) {
+        const auto& opt = str[0];
         if (!m_opt_short.set(opt, std::size(m_options))) {
           throw error<error_t::duplicate_option>(opt);
         }
       } else {
-        const auto opt = str.substr(2);
+        const auto& opt = str;
         if (!m_opt_long.set(opt, std::size(m_options))) {
           throw error<error_t::duplicate_option>(opt);
         }
@@ -320,84 +312,77 @@ class parser
     };
   }
 
-  enum class short_res : std::uint8_t
+  enum class handle_res : std::uint8_t
   {
-    flag,
-    rest,
     next,
-    missing,
+    ok,
   };
 
-  [[nodiscard]] short_res handle_short(
-      Record& record,
-      char opt,
-      std::string_view rest,
-      std::span<std::string_view> next
+  handle_res handle_long_opt(
+      Record& record, std::string_view arg, std::span<std::string_view> next
   ) const
   {
-    const auto option = get_option(opt);
+    const auto equal = arg.find('=');
+    if (equal != std::string::npos) {
+      auto opt = arg.substr(0, equal - 1);
+      const auto value = arg.substr(equal + 1);
 
-    if (!option.argument()) {
-      option(record, "true");
-      return short_res::flag;
-    }
+      const auto option = get_option(opt);
 
-    if (!rest.empty()) {
-      option(record, rest);
-      return short_res::rest;
-    }
+      if (!option.argument()) {
+        throw error<error_t::superfluous_argument>(opt);
+      }
 
-    if (!next.empty()) {
-      option(record, *std::begin(next));
-      return short_res::next;
-    }
+      if (!value.empty()) {
+        option(record, value);
+        return handle_res::ok;
+      }
 
-    return short_res::missing;
-  }
-
-  enum class long_res : std::uint8_t
-  {
-    flag,
-    next,
-    missing,
-  };
-
-  [[nodiscard]] long_res handle_long(
-      Record& record, std::string_view opt, std::span<std::string_view> next
-  ) const
-  {
-    const auto option = get_option(opt);
-
-    if (!option.argument()) {
-      option(record, "true");
-      return long_res::flag;
-    }
-
-    if (!next.empty()) {
-      option(record, *std::begin(next));
-      return long_res::next;
-    }
-
-    return long_res::missing;
-  }
-
-  void handle_long_equal(
-      Record& record, std::string_view mix, std::string_view::size_type equal
-  ) const
-  {
-    const auto opt = mix.substr(0, equal - 1);
-    const auto option = get_option(opt);
-
-    if (!option.argument()) {
-      throw error<error_t::superfluous_argument>(opt);
-    }
-
-    const auto arg = mix.substr(equal + 1);
-    if (arg.empty()) {
       throw error<error_t::missing_argument>(opt);
     }
 
-    option(record, arg);
+    const auto option = get_option(arg);
+
+    if (!option.argument()) {
+      option(record, "true");
+      return handle_res::ok;
+    }
+
+    if (!next.empty()) {
+      option(record, *std::begin(next));
+      return handle_res::next;
+    }
+
+    throw error<error_t::missing_argument>(arg);
+  }
+
+  handle_res handle_short_opts(
+      Record& record, std::string_view arg, std::span<std::string_view> next
+  ) const
+  {
+    for (std::size_t opt_idx = 0; opt_idx < std::size(arg); opt_idx++) {
+      const auto opt = arg[opt_idx];
+      const auto option = get_option(opt);
+
+      if (!option.argument()) {
+        option(record, "true");
+        continue;
+      }
+
+      if (opt_idx + 1 != std::size(arg)) {
+        option(record, arg.substr(opt_idx + 1));
+        break;
+      }
+
+      if (!next.empty()) {
+        option(record, *std::begin(next));
+        return handle_res::next;
+      }
+
+      throw error<error_t::missing_argument>(opt);
+    }
+
+    return handle_res::ok;
   }
 
 public:
@@ -436,53 +421,19 @@ public:
         continue;
       }
 
-      if (arg_raw[1] != '-') {
-        // short options
-        auto arg = arg_raw.substr(1);
-        for (std::size_t opt_idx = 0; opt_idx < std::size(arg); opt_idx++) {
-          const auto res = handle_short(
-              record,
-              arg[opt_idx],
-              arg.substr(opt_idx + 1),
-              args.subspan(arg_idx + 1)
-          );
-
-          switch (res) {
-            case short_res::flag:
-              continue;
-            case short_res::rest:
-              break;
-            case short_res::next:
-              arg_idx++;
-              break;
-            case short_res::missing:
-              throw error<error_t::missing_argument>(arg);
-              break;
-          }
-
+      const auto res = arg_raw[1] != '-'
+          ? handle_short_opts(
+                record, arg_raw.substr(1), args.subspan(arg_idx + 1)
+            )
+          : handle_long_opt(
+                record, arg_raw.substr(2), args.subspan(arg_idx + 1)
+            );
+      switch (res) {
+        case handle_res::ok:
           break;
-        }
-      } else {
-        // long option
-        auto arg = arg_raw.substr(2);
-        const auto equal = arg.find('=');
-
-        if (equal != std::string::npos) {
-          handle_long_equal(record, arg, equal);
-          continue;
-        }
-
-        const auto res = handle_long(record, arg, args.subspan(arg_idx + 1));
-        switch (res) {
-          case long_res::flag:
-            break;
-          case long_res::next:
-            arg_idx++;
-            break;
-          case long_res::missing:
-            throw error<error_t::missing_argument>(arg);
-            break;
-        }
+        case handle_res::next:
+          arg_idx++;
+          break;
       }
     }
 
