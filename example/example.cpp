@@ -57,10 +57,8 @@ int main()
   };
 
   std::vector<std::string_view> cmd_args {
-      "--value",
-      "150",
-      "-m",
-      "1.34",
+      "--value=150",
+      "-m1.34",
       "--name",
       "Hello there!",
       "-p",
