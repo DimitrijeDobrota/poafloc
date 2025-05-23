@@ -1,11 +1,13 @@
 #pragma once
 
 #include <algorithm>
+#include <concepts>
 #include <cstring>
+#include <format>
 #include <functional>
-#include <iostream>
 #include <memory>
 #include <optional>
+#include <span>
 #include <sstream>
 #include <string>
 #include <string_view>
@@ -18,15 +20,20 @@ template<class Record>
 class option_base
 {
   using func_t = std::function<void(Record&, std::string_view)>;
+
   func_t m_func;
+  bool m_arg;
 
 protected:
-  explicit option_base(func_t func)
+  explicit option_base(func_t func, bool argument)
       : m_func(std::move(func))
+      , m_arg(argument)
   {
   }
 
 public:
+  [[nodiscard]] bool argument() const { return m_arg; }
+
   void operator()(Record& record, std::string_view value) const
   {
     m_func(record, value);
@@ -47,6 +54,8 @@ class option : public option_base<Record>
       if constexpr (std::is_invocable_v<member_type, Record, std::string_view>)
       {
         std::invoke(member, record, value);
+      } else if constexpr (std::same_as<bool, Type>) {
+        std::invoke(member, record) = true;
       } else if constexpr (requires(Type tmp, std::string_view val) {
                              tmp = val;
                            })
@@ -66,7 +75,7 @@ public:
   using value_type = Type;
 
   option(std::string_view opts, member_type member)
-      : option_base<Record>(create(member))
+      : option_base<Record>(create(member), !std::same_as<bool, Type>)
       , m_opts(opts)
   {
   }
@@ -200,13 +209,13 @@ public:
 template<class Record>
 class parser
 {
-  using setter_t = option_base<Record>;
-  std::vector<setter_t> m_setters;
+  using option_t = option_base<Record>;
+  std::vector<option_t> m_options;
 
   detail::option_short m_opt_short;
   detail::option_long m_opt_long;
 
-  void process(const option_base<Record>& opt, std::string_view opts)
+  void process(const option_base<Record>& option, std::string_view opts)
   {
     auto istr = std::istringstream(std::string(opts));
     std::string str;
@@ -217,17 +226,47 @@ class parser
       }
 
       if (str[1] != '-') {
-        if (!m_opt_short.set(str[1], m_setters.size())) {
-          throw std::runtime_error("Duplicate short option");
+        if (str.size() != 2) {
+          throw std::runtime_error {std::format(
+              "Short option requires one character: {}", str.substr(1)
+          )};
+        }
+
+        const auto opt = str[1];
+        if (!m_opt_short.set(opt, m_options.size())) {
+          throw std::runtime_error {
+              std::format("Duplicate short option: {}", opt)
+          };
         }
       } else {
-        if (!m_opt_long.set(str.substr(2), m_setters.size())) {
-          throw std::runtime_error("Duplicate long option");
+        const auto opt = str.substr(2);
+        if (!m_opt_long.set(opt, m_options.size())) {
+          throw std::runtime_error {
+              std::format("Duplicate long option: {}", opt)
+          };
         }
       }
     }
 
-    m_setters.emplace_back(opt);
+    m_options.emplace_back(option);
+  }
+
+  [[nodiscard]] const option_t& get_option(char chr) const
+  {
+    const auto idx = m_opt_short.get(chr);
+    if (!idx.has_value()) {
+      throw std::runtime_error(std::format("Unknown short option: {}", chr));
+    }
+    return m_options[idx.value()];
+  }
+
+  [[nodiscard]] const option_t& get_option(std::string_view str) const
+  {
+    const auto idx = m_opt_long.get(str);
+    if (!idx.has_value()) {
+      throw std::runtime_error(std::format("Unknown long option: {}", str));
+    }
+    return m_options[idx.value()];
   }
 
 public:
@@ -237,26 +276,89 @@ public:
   {
     constexpr auto size = sizeof...(Args);
 
-    m_setters.reserve(size);
+    m_options.reserve(size);
     (process(args, args.opts()), ...);
   }
 
-  void set(char chr, Record& record, std::string_view value) const
+  auto operator()(Record& record, const char* argc, int argv) const
   {
-    const auto idx = m_opt_short.get(chr);
-    if (!idx.has_value()) {
-      throw std::runtime_error("Unknown short option");
-    }
-    m_setters[idx.value()](record, value);
+    return operator()(record, std::span(argc, argv));
   }
 
-  void set(std::string_view str, Record& record, std::string_view value) const
+  bool operator()(Record& record, const std::span<std::string_view> args) const
   {
-    const auto idx = m_opt_long.get(str);
-    if (!idx.has_value()) {
-      throw std::runtime_error("Unknown long option");
+    std::size_t arg_idx = 0;
+
+    for (; arg_idx != args.size(); ++arg_idx) {
+      const auto arg = args[arg_idx];
+
+      if (arg == "--") {
+        break;
+      }
+
+      if (arg.size() < 2) {
+        return false;
+      }
+
+      if (arg[0] != '-') {
+        // TODO positional arg
+        continue;
+      }
+
+      if (arg[1] != '-') {
+        // short options
+        for (std::size_t opt_idx = 1; opt_idx < arg.size(); opt_idx++) {
+          const auto opt = arg[opt_idx];
+          const auto option = get_option(opt);
+
+          if (!option.argument()) {
+            option(record, "true");
+            continue;
+          }
+
+          if (opt_idx + 1 == arg.size()) {
+            if (arg_idx + 1 == args.size()) {
+              throw std::runtime_error {
+                  std::format("Missing argument for option: {}", opt)
+              };
+            }
+            option(record, args[++arg_idx]);
+            continue;
+          }
+
+          option(record, arg.substr(opt_idx + 1));
+          break;
+        }
+      } else {
+        // long option
+        const auto equal = arg.find('=', 2);
+
+        if (equal == std::string::npos) {
+          const auto opt = arg.substr(2);
+          const auto option = get_option(opt);
+
+          if (!option.argument()) {
+            option(record, "true");
+            continue;
+          }
+
+          if (arg_idx + 1 == args.size()) {
+            throw std::runtime_error {
+                std::format("Missing argument for option: {}", opt)
+            };
+          }
+
+          option(record, args[++arg_idx]);
+
+        } else {
+          const auto opt = arg.substr(2, equal - 1);
+          const auto option = get_option(opt);
+          // TODO
+        }
+      }
     }
-    m_setters[idx.value()](record, value);
+
+    return true;
   }
 };
 

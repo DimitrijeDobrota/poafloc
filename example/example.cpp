@@ -11,6 +11,8 @@ public:
   int val = 0;
   double mul = 0;
   std::string name = "default";
+  bool flag1 = false;
+  bool flag2 = false;
   // NOLINTEND(*non-private*)
 
   void set_priv(std::string_view value) { m_priv = value; }
@@ -18,7 +20,7 @@ public:
   friend std::ostream& operator<<(std::ostream& ost, const arguments& args)
   {
     return ost << args.val << ' ' << args.mul << ' ' << args.name << ' '
-               << args.m_priv;
+               << args.m_priv << ' ' << args.flag1 << ' ' << args.flag2;
   }
 };
 
@@ -44,21 +46,33 @@ int main()
           "-p --priv",
           &arguments::set_priv,
       },
+      option {
+          "-f --flag1",
+          &arguments::flag1,
+      },
+      option {
+          "-F --flag2",
+          &arguments::flag2,
+      },
+  };
+
+  std::vector<std::string_view> cmd_args {
+      "--value",
+      "150",
+      "-m",
+      "1.34",
+      "--name",
+      "Hello there!",
+      "-p",
+      "General Kenobi!",
+      "--flag1",
+      "-F",
   };
 
   arguments args;
-  std::cout << args << '\n';
 
-  program.set('v', args, "150");
   std::cout << args << '\n';
-
-  program.set('m', args, "1.34");
-  std::cout << args << '\n';
-
-  program.set("name", args, "Hello there!");
-  std::cout << args << '\n';
-
-  program.set('p', args, "General Kenobi!");
+  program(args, cmd_args);
   std::cout << args << '\n';
 
   return 0;
