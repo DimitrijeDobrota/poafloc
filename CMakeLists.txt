@@ -4,7 +4,7 @@ include(cmake/prelude.cmake)
 
 project(
     poafloc
-    VERSION 1.2.0
+    VERSION 2.0.0
     DESCRIPTION "Parser Of Arguments For Lines Of Commands"
     HOMEPAGE_URL "https://git.dimitrijedobrota.com/poafloc.git"
     LANGUAGES C CXX
@@ -13,16 +13,18 @@ project(
 include(cmake/project-is-top-level.cmake)
 include(cmake/variables.cmake)
 
+find_package(based 0.2.0 CONFIG REQUIRED)
+
 # ---- Declare library ----
 
 add_library(
     poafloc_poafloc
     source/poafloc.cpp
-    source/c_bindings.cpp
-    source/help.cpp
-    source/trie.cpp
+    # source/help.cpp
+    # source/trie.cpp
 )
 add_library(poafloc::poafloc ALIAS poafloc_poafloc)
+target_link_libraries(poafloc_poafloc PUBLIC based::based)
 
 include(GenerateExportHeader)
 generate_export_header(

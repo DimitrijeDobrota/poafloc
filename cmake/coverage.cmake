@@ -1,20 +1,25 @@
 # ---- Variables ----
 
+find_program(LCOV lcov REQUIRED)
+find_program(GENHTML genhtml REQUIRED)
+
 # We use variables separate from what CTest uses, because those have
 # customization issues
 set(
     COVERAGE_TRACE_COMMAND
-    lcov -c -q
+    ${LCOV} -c -q
     -o "${PROJECT_BINARY_DIR}/coverage.info"
     -d "${PROJECT_BINARY_DIR}"
     --include "${PROJECT_SOURCE_DIR}/*"
+    --capture
+    --all
     CACHE STRING
     "; separated command to generate a trace for the 'coverage' target"
 )
 
 set(
     COVERAGE_HTML_COMMAND
-    genhtml --legend -f -q
+    ${GENHTML} --legend -f -q
     "${PROJECT_BINARY_DIR}/coverage.info"
     -p "${PROJECT_SOURCE_DIR}"
     -o "${PROJECT_BINARY_DIR}/coverage_html"

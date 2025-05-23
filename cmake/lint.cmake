@@ -1,9 +1,9 @@
 cmake_minimum_required(VERSION 3.14)
 
 macro(default name)
-  if(NOT DEFINED "${name}")
-    set("${name}" "${ARGN}")
-  endif()
+if(NOT DEFINED "${name}")
+  set("${name}" "${ARGN}")
+endif()
 endmacro()
 
 default(FORMAT_COMMAND clang-format)

@@ -2,9 +2,9 @@
 Language: Cpp
 # BasedOnStyle: Chromium
 AccessModifierOffset: -2
-AlignAfterOpenBracket: Align
+AlignAfterOpenBracket: BlockIndent
 AlignConsecutiveMacros: false
-AlignConsecutiveAssignments: true
+AlignConsecutiveAssignments: false
 AlignConsecutiveBitFields: false
 AlignConsecutiveDeclarations: false
 AlignEscapedNewlines: Right
@@ -17,9 +17,10 @@ AllowShortEnumsOnASingleLine: false
 AllowShortBlocksOnASingleLine: Empty
 AllowShortCaseLabelsOnASingleLine: false
 AllowShortFunctionsOnASingleLine: Inline
-AllowShortLambdasOnASingleLine: All
-AllowShortIfStatementsOnASingleLine: AllIfsAndElse
-AllowShortLoopsOnASingleLine: true
+AllowShortLambdasOnASingleLine: Empty
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+AllowShortCompoundRequirementOnASingleLine: true
 AlwaysBreakAfterDefinitionReturnType: None
 AlwaysBreakAfterReturnType: None
 AlwaysBreakBeforeMultilineStrings: true
@@ -29,16 +30,16 @@ BinPackParameters: false
 BraceWrapping:
   AfterCaseLabel: false
   AfterClass: true
-  AfterControlStatement: Always
+  AfterControlStatement: MultiLine
   AfterEnum: true
   AfterFunction: true
-  AfterNamespace: false
+  AfterNamespace: true
   AfterObjCDeclaration: false
   AfterStruct: true
   AfterUnion: true
   AfterExternBlock: true
   BeforeCatch: false
-  BeforeElse: true
+  BeforeElse: false
   BeforeLambdaBody: true
   BeforeWhile: false
   IndentBraces: false
@@ -50,11 +51,12 @@ BreakBeforeBraces: Custom
 # BreakBeforeInheritanceComma: true
 BreakInheritanceList: BeforeComma
 BreakBeforeTernaryOperators: true
+BreakBeforeConceptDeclarations: Always
 BreakConstructorInitializersBeforeComma: true
 BreakConstructorInitializers: BeforeComma
 BreakAfterJavaFieldAnnotations: true
 BreakStringLiterals: true
-ColumnLimit: 79
+ColumnLimit: 80
 CommentPragmas: '^ IWYU pragma:'
 CompactNamespaces: false
 ConstructorInitializerAllOnOneLineOrOnePerLine: false
@@ -70,6 +72,7 @@ ForEachMacros:
   - foreach
   - Q_FOREACH
   - BOOST_FOREACH
+  - BASED_FOREACH
 IncludeBlocks: Regroup
 IncludeCategories:
   # Standard library headers come before anything else
@@ -90,6 +93,8 @@ IndentPPDirectives: AfterHash
 IndentExternBlock: NoIndent
 IndentWidth: 2
 IndentWrappedFunctionNames: false
+IndentRequiresClause: true
+RequiresClausePosition: OwnLine
 InsertTrailingCommas: Wrapped
 JavaScriptQuotes: Double
 JavaScriptWrapImports: true
@@ -98,6 +103,7 @@ MacroBlockBegin: ''
 MacroBlockEnd: ''
 MaxEmptyLinesToKeep: 1
 NamespaceIndentation: None
+RequiresExpressionIndentation: OuterScope
 ObjCBinPackProtocolList: Never
 ObjCBlockIndentWidth: 2
 ObjCBreakBeforeNestedBlockParam: true

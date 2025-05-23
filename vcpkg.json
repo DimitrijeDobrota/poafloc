@@ -1,12 +1,22 @@
 {
   "name": "poafloc",
-  "version-semver": "1.2.0",
-  "dependencies": [],
+  "version-semver": "1.3.0",
+  "dependencies": [
+    {
+      "name": "based",
+      "version>=": "0.2.0"
+    }
+  ],
   "default-features": [],
   "features": {
     "test": {
       "description": "Dependencies for testing",
-      "dependencies": []
+      "dependencies": [
+        {
+          "name": "catch2",
+          "version>=": "3.7.1"
+        }
+      ]
     }
   },
   "builtin-baseline": "eba7c6a894fce24146af4fdf161fef8e90dd6be3"
