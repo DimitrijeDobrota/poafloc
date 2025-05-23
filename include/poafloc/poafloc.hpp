@@ -89,16 +89,71 @@ namespace detail
 struct option_base
 {
   using value_type = std::size_t;
-  using return_type = std::optional<value_type>;
+  using optional_type = std::optional<value_type>;
 
-  static constexpr const std::size_t size = 256;
   static constexpr const auto sentinel = value_type {0xFFFFFFFFFFFFFFFF};
+
+  static constexpr bool is_valid(char c)
+  {
+    return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')
+        || (c >= '0' && c <= '9');
+  }
+
+  static constexpr const auto size_char = 256;
+  static constexpr const auto size = []()
+  {
+    std::size_t count = 0;
+
+    for (std::size_t idx = 0; idx < size_char; ++idx) {
+      const char c = static_cast<char>(idx);
+      if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')
+          || (c >= '0' && c <= '9'))
+      {
+        count++;
+        continue;
+      }
+    }
+    return count;
+  }();
+
+  static constexpr const auto mapping = []()
+  {
+    std::array<std::size_t, size_char> res = {};
+    std::size_t count = 0;
+
+    for (std::size_t idx = 0; idx < std::size(res); ++idx) {
+      const char c = static_cast<char>(idx);
+      if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')
+          || (c >= '0' && c <= '9'))
+      {
+        res[idx] = count++;
+        continue;
+      }
+
+      res[idx] = sentinel;
+    }
+
+    return res;
+  }();
 
   using container_type = std::array<value_type, size>;
 
   static auto convert(char chr)
   {
-    return static_cast<container_type::size_type>(chr);
+    if (!is_valid(chr)) {
+      invalid_char(chr);
+    }
+
+    return mapping[static_cast<container_type::size_type>(
+        static_cast<unsigned char>(chr)
+    )];
+  }
+
+  [[noreturn]] static void invalid_char(char c)
+  {
+    throw std::runtime_error {
+        std::format("Invalid char in option: {}", c),
+    };
   }
 };
 
@@ -124,7 +179,7 @@ public:
     return true;
   }
 
-  [[nodiscard]] return_type get(char chr) const
+  [[nodiscard]] optional_type get(char chr) const
   {
     if (!has(chr)) {
       return {};
@@ -170,7 +225,7 @@ class option_long : option_base
       return true;
     }
 
-    static return_type get(const trie_t& trie, std::string_view key)
+    static optional_type get(const trie_t& trie, std::string_view key)
     {
       const trie_t* crnt = &trie;
 
@@ -198,7 +253,7 @@ public:
     return trie_t::set(m_trie, opt, idx);
   }
 
-  [[nodiscard]] return_type get(std::string_view opt) const
+  [[nodiscard]] optional_type get(std::string_view opt) const
   {
     return trie_t::get(m_trie, opt);
   }
@@ -221,26 +276,26 @@ class parser
     std::string str;
 
     while (std::getline(istr, str, ' ')) {
-      if (str.size() < 2 || str[0] != '-') {
+      if (std::size(str) < 2 || str[0] != '-') {
         continue;
       }
 
       if (str[1] != '-') {
-        if (str.size() != 2) {
+        if (std::size(str) != 2) {
           throw std::runtime_error {std::format(
               "Short option requires one character: {}", str.substr(1)
           )};
         }
 
         const auto opt = str[1];
-        if (!m_opt_short.set(opt, m_options.size())) {
+        if (!m_opt_short.set(opt, std::size(m_options))) {
           throw std::runtime_error {
               std::format("Duplicate short option: {}", opt)
           };
         }
       } else {
         const auto opt = str.substr(2);
-        if (!m_opt_long.set(opt, m_options.size())) {
+        if (!m_opt_long.set(opt, std::size(m_options))) {
           throw std::runtime_error {
               std::format("Duplicate long option: {}", opt)
           };
@@ -270,7 +325,7 @@ class parser
   }
 
   template<class T>
-  [[noreturn]] void missing_argument(T opt) const
+  [[noreturn]] static void missing_argument(T opt)
   {
     throw std::runtime_error {
         std::format("Missing argument for option: {}", opt)
@@ -278,14 +333,22 @@ class parser
   }
 
   template<class T>
-  [[noreturn]] void unknown_option(T opt) const
+  [[noreturn]] static void superfluous_argument(T opt)
+  {
+    throw std::runtime_error {
+        std::format("Option doesn't require an  argument: {}", opt)
+    };
+  }
+
+  template<class T>
+  [[noreturn]] static void unknown_option(T opt)
   {
     throw std::runtime_error {
         std::format("Unknown option: {}", opt),
     };
   }
 
-  [[noreturn]] void unhandled_positional(std::string_view arg) const
+  [[noreturn]] static void unhandled_positional(std::string_view arg)
   {
     throw std::runtime_error {
         std::format("Unhandled positional arg: {}", arg),
@@ -361,16 +424,12 @@ class parser
     const auto option = get_option(opt);
 
     if (!option.argument()) {
-      throw std::runtime_error {
-          std::format("Option doesn't require an argumente: {}", opt),
-      };
+      superfluous_argument(opt);
     }
 
     const auto arg = mix.substr(equal + 1);
     if (arg.empty()) {
-      throw std::runtime_error {
-          std::format("Option requires an argumente: {}", opt),
-      };
+      missing_argument(opt);
     }
 
     option(record, arg);
@@ -396,7 +455,7 @@ public:
   {
     std::size_t arg_idx = 0;
 
-    for (; arg_idx != args.size(); ++arg_idx) {
+    for (; arg_idx != std::size(args); ++arg_idx) {
       const auto arg_raw = args[arg_idx];
 
       if (arg_raw.size() < 2) {
@@ -415,7 +474,7 @@ public:
       if (arg_raw[1] != '-') {
         // short options
         auto arg = arg_raw.substr(1);
-        for (std::size_t opt_idx = 0; opt_idx < arg.size(); opt_idx++) {
+        for (std::size_t opt_idx = 0; opt_idx < std::size(arg); opt_idx++) {
           const auto res = handle_short(
               record,
               arg[opt_idx],
@@ -462,7 +521,7 @@ public:
       }
     }
 
-    for (; arg_idx != args.size(); ++arg_idx) {
+    for (; arg_idx != std::size(args); ++arg_idx) {
       unhandled_positional(args[arg_idx]);
     }
   }
