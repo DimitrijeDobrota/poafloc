@@ -29,19 +29,19 @@ int main()
 
   const auto program = parser<arguments> {
       option {
-          "-v,--value",
+          "-v --value",
           &arguments::val,
       },
       option {
-          "-m,--multiply",
+          "-m --multiply",
           &arguments::mul,
       },
       option {
-          "-n,--name",
+          "-n --name",
           &arguments::name,
       },
       option {
-          "-p,--priv",
+          "-p --priv",
           &arguments::set_priv,
       },
   };

@@ -1,8 +1,11 @@
 #pragma once
 
 #include <algorithm>
-#include <concepts>
+#include <cstring>
 #include <functional>
+#include <iostream>
+#include <memory>
+#include <optional>
 #include <sstream>
 #include <string>
 #include <string_view>
@@ -71,31 +74,160 @@ public:
   [[nodiscard]] const std::string& opts() const { return m_opts; }
 };
 
+namespace detail
+{
+
+struct option_base
+{
+  using value_type = std::size_t;
+  using return_type = std::optional<value_type>;
+
+  static constexpr const std::size_t size = 256;
+  static constexpr const auto sentinel = value_type {0xFFFFFFFFFFFFFFFF};
+
+  using container_type = std::array<value_type, size>;
+
+  static auto convert(char chr)
+  {
+    return static_cast<container_type::size_type>(chr);
+  }
+};
+
+class option_short : option_base
+{
+  container_type m_opts = {};
+
+  [[nodiscard]] bool has(char chr) const
+  {
+    return m_opts[convert(chr)] != sentinel;
+  }
+
+public:
+  option_short() { m_opts.fill(sentinel); }
+
+  [[nodiscard]] bool set(char chr, value_type idx)
+  {
+    if (has(chr)) {
+      return false;
+    }
+
+    m_opts[convert(chr)] = idx;
+    return true;
+  }
+
+  [[nodiscard]] return_type get(char chr) const
+  {
+    if (!has(chr)) {
+      return {};
+    }
+
+    return m_opts[convert(chr)];
+  }
+};
+
+class option_long : option_base
+{
+  class Trie
+  {
+    std::array<std::unique_ptr<Trie>, size> m_children = {};
+    value_type m_value = sentinel;
+    std::size_t m_count = 0;
+    bool m_terminal = false;
+
+  public:
+    static bool set(Trie& trie, std::string_view key, value_type value)
+    {
+      Trie* crnt = &trie;
+
+      for (const auto c : key) {
+        crnt->m_count++;
+        if (!crnt->m_terminal) {
+          crnt->m_value = value;
+        }
+
+        const auto idx = convert(c);
+        if (crnt->m_children[idx] == nullptr) {
+          crnt->m_children[idx] = std::make_unique<Trie>();
+        }
+        crnt = crnt->m_children[idx].get();
+      }
+
+      if (crnt->m_terminal) {
+        return false;
+      }
+
+      crnt->m_value = value;
+      crnt->m_terminal = true;
+      return true;
+    }
+
+    static return_type get(const Trie& trie, std::string_view key)
+    {
+      const Trie* crnt = &trie;
+
+      for (const auto c : key) {
+        const auto idx = convert(c);
+        if (crnt->m_children[idx] == nullptr) {
+          return {};
+        }
+        crnt = crnt->m_children[idx].get();
+      }
+
+      if (crnt->m_terminal || crnt->m_count == 1) {
+        return crnt->m_value;
+      }
+
+      return {};
+    }
+  };
+
+  Trie m_trie;
+
+public:
+  [[nodiscard]] bool set(std::string_view opt, value_type idx)
+  {
+    return Trie::set(m_trie, opt, idx);
+  }
+
+  [[nodiscard]] return_type get(std::string_view opt) const
+  {
+    return Trie::get(m_trie, opt);
+  }
+};
+
+}  // namespace detail
+
 template<class Record>
 class parser
 {
-  std::vector<option_base<Record>> m_setters;
-  std::vector<char> m_opt_short;
-  std::vector<std::string> m_opt_long;
+  using setter_t = option_base<Record>;
+  std::vector<setter_t> m_setters;
 
-  void process(std::string_view opts)
+  detail::option_short m_opt_short;
+  detail::option_long m_opt_long;
+
+  void process(const option_base<Record>& opt, std::string_view opts)
   {
     auto istr = std::istringstream(std::string(opts));
-    std::string opt;
+    std::string str;
 
-    m_opt_short.emplace_back('\0');
-    m_opt_long.emplace_back("");
-    while (std::getline(istr, opt, ',')) {
-      if (opt.size() < 2 || opt[0] != '-') {
+    while (std::getline(istr, str, ' ')) {
+      if (str.size() < 2 || str[0] != '-') {
         continue;
       }
 
-      if (opt[1] != '-') {
-        m_opt_short.back() = opt[1];
+      if (str[1] != '-') {
+        if (!m_opt_short.set(str[1], m_setters.size())) {
+          throw std::runtime_error("Duplicate short option");
+        }
       } else {
-        m_opt_long.back() = opt.substr(2);
+        if (!m_opt_long.set(str.substr(2), m_setters.size())) {
+          throw std::runtime_error("Duplicate long option");
+        }
       }
     }
+
+    m_setters.emplace_back(opt);
   }
 
 public:
@@ -104,42 +236,27 @@ public:
     requires(std::same_as<Record, typename Args::record_type> && ...)
   {
     constexpr auto size = sizeof...(Args);
-    m_opt_short.reserve(size);
-    m_opt_long.reserve(size);
-    (process(args.opts()), ...);
 
     m_setters.reserve(size);
-    (m_setters.emplace_back(std::forward<Args>(args)), ...);
+    (process(args, args.opts()), ...);
   }
 
-  bool set(char chr, Record& record, std::string_view value) const
+  void set(char chr, Record& record, std::string_view value) const
   {
-    const auto itr =
-        std::find(std::begin(m_opt_short), std::end(m_opt_short), chr);
-
-    if (itr == m_opt_short.end()) {
-      return false;
+    const auto idx = m_opt_short.get(chr);
+    if (!idx.has_value()) {
+      throw std::runtime_error("Unknown short option");
     }
-
-    const auto setter =
-        std::begin(m_setters) + std::distance(std::begin(m_opt_short), itr);
-    (*setter)(record, value);
-    return false;
+    m_setters[idx.value()](record, value);
   }
 
-  bool set(std::string_view str, Record& record, std::string_view value) const
+  void set(std::string_view str, Record& record, std::string_view value) const
   {
-    const auto itr =
-        std::find(std::begin(m_opt_long), std::end(m_opt_long), str);
-
-    if (itr == m_opt_long.end()) {
-      return false;
+    const auto idx = m_opt_long.get(str);
+    if (!idx.has_value()) {
+      throw std::runtime_error("Unknown long option");
     }
-
-    const auto setter =
-        std::begin(m_setters) + std::distance(std::begin(m_opt_long), itr);
-    (*setter)(record, value);
-    return false;
+    m_setters[idx.value()](record, value);
   }
 };
 
