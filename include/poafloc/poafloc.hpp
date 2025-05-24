@@ -143,7 +143,7 @@ struct option_base
   static auto convert(char chr)
   {
     if (!is_valid(chr)) {
-      throw error<error_t::invalid_char>(chr);
+      throw error<error_code::invalid_char>(chr);
     }
 
     return mapping[static_cast<container_type::size_type>(
@@ -274,12 +274,12 @@ class parser
       if (std::size(str) == 1) {
         const auto& opt = str[0];
         if (!m_opt_short.set(opt, std::size(m_options))) {
-          throw error<error_t::duplicate_option>(opt);
+          throw error<error_code::duplicate_option>(opt);
         }
       } else {
         const auto& opt = str;
         if (!m_opt_long.set(opt, std::size(m_options))) {
-          throw error<error_t::duplicate_option>(opt);
+          throw error<error_code::duplicate_option>(opt);
         }
       }
     }
@@ -291,7 +291,7 @@ class parser
   {
     const auto idx = m_opt_short.get(opt);
     if (!idx.has_value()) {
-      throw error<error_t::unknown_option>(opt);
+      throw error<error_code::unknown_option>(opt);
     }
     return m_options[idx.value()];
   }
@@ -300,7 +300,7 @@ class parser
   {
     const auto idx = m_opt_long.get(opt);
     if (!idx.has_value()) {
-      throw error<error_t::unknown_option>(opt);
+      throw error<error_code::unknown_option>(opt);
     }
     return m_options[idx.value()];
   }
@@ -330,7 +330,7 @@ class parser
       const auto option = get_option(opt);
 
       if (!option.argument()) {
-        throw error<error_t::superfluous_argument>(opt);
+        throw error<error_code::superfluous_argument>(opt);
       }
 
       if (!value.empty()) {
@@ -338,7 +338,7 @@ class parser
         return handle_res::ok;
       }
 
-      throw error<error_t::missing_argument>(opt);
+      throw error<error_code::missing_argument>(opt);
     }
 
     const auto option = get_option(arg);
@@ -353,7 +353,7 @@ class parser
       return handle_res::next;
     }
 
-    throw error<error_t::missing_argument>(arg);
+    throw error<error_code::missing_argument>(arg);
   }
 
   handle_res handle_short_opts(
@@ -379,7 +379,7 @@ class parser
         return handle_res::next;
       }
 
-      throw error<error_t::missing_argument>(opt);
+      throw error<error_code::missing_argument>(opt);
     }
 
     return handle_res::ok;
@@ -409,7 +409,7 @@ public:
       const auto arg_raw = args[arg_idx];
 
       if (arg_raw.size() < 2) {
-        throw error<error_t::unknown_option>(arg_raw);
+        throw error<error_code::unknown_option>(arg_raw);
       }
 
       if (arg_raw == "--") {

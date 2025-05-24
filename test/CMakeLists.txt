@@ -17,13 +17,15 @@ include(Catch)
 
 # ---- Tests ----
 
-function(add_test DIR NAME)
-  add_executable("${NAME}" "source/${DIR}/${NAME}.cpp")
-  target_link_libraries("${NAME}" PRIVATE based::based)
+function(add_test NAME)
+  add_executable("${NAME}" "source/${NAME}.cpp")
+  target_link_libraries("${NAME}" PRIVATE poafloc::poafloc)
   target_link_libraries("${NAME}" PRIVATE Catch2::Catch2WithMain)
   target_compile_features("${NAME}" PRIVATE cxx_std_20)
   catch_discover_tests("${NAME}")
 endfunction()
+
+add_test(parser)
 
 # ---- End-of-file commands ----
 
