@@ -23,7 +23,7 @@ TEST_CASE("invalid", "[poafloc/parser]")
 
   SECTION("short number")
   {
-    const auto construct = []()
+    auto construct = []()
     {
       return parser<arguments> {
           option {"1", &arguments::flag},
@@ -34,7 +34,7 @@ TEST_CASE("invalid", "[poafloc/parser]")
 
   SECTION("long upper")
   {
-    const auto construct = []()
+    auto construct = []()
     {
       return parser<arguments> {
           option {"FLAG", &arguments::flag},
@@ -45,7 +45,7 @@ TEST_CASE("invalid", "[poafloc/parser]")
 
   SECTION("long number start")
   {
-    const auto construct = []()
+    auto construct = []()
     {
       return parser<arguments> {
           option {"1value", &arguments::value},
@@ -56,7 +56,7 @@ TEST_CASE("invalid", "[poafloc/parser]")
 
   SECTION("short duplicate")
   {
-    const auto construct = []()
+    auto construct = []()
     {
       return parser<arguments> {
           option {"f flag", &arguments::flag},
@@ -68,7 +68,7 @@ TEST_CASE("invalid", "[poafloc/parser]")
 
   SECTION("long duplicate")
   {
-    const auto construct = []()
+    auto construct = []()
     {
       return parser<arguments> {
           option {"f flag", &arguments::flag},
@@ -86,7 +86,7 @@ TEST_CASE("flag", "[poafloc/parser]")
     bool flag = false;
   } args;
 
-  const auto program = parser<arguments> {
+  auto program = parser<arguments> {
       option {"f flag", &arguments::flag},
   };
 
@@ -147,7 +147,7 @@ TEST_CASE("option string", "[poafloc/parser]")
     std::string name = "default";
   } args;
 
-  const auto program = parser<arguments> {
+  auto program = parser<arguments> {
       option {"n name", &arguments::name},
   };
 
@@ -271,7 +271,7 @@ TEST_CASE("option value", "[poafloc/parser]")
     int value = 0;
   } args;
 
-  const auto program = parser<arguments> {
+  auto program = parser<arguments> {
       option {"v value", &arguments::value},
   };
 
@@ -388,6 +388,132 @@ TEST_CASE("option value", "[poafloc/parser]")
   }
 }
 
+TEST_CASE("positional", "[poafloc/parser]")
+{
+  struct arguments
+  {
+    bool flag = false;
+    int value = 0;
+  } args;
+
+  auto program = parser<arguments> {
+      option {"f flag", &arguments::flag},
+      option {"v value", &arguments::value},
+  };
+
+  SECTION("empty")
+  {
+    std::vector<std::string_view> cmdline = {};
+    REQUIRE_NOTHROW(program(args, cmdline));
+    REQUIRE(program.empty());
+  }
+
+  SECTION("one")
+  {
+    std::vector<std::string_view> cmdline = {"one"};
+    REQUIRE_NOTHROW(program(args, cmdline));
+    REQUIRE(program[0] == "one");
+  }
+
+  SECTION("two")
+  {
+    std::vector<std::string_view> cmdline = {"one", "two"};
+    REQUIRE_NOTHROW(program(args, cmdline));
+    REQUIRE(program[0] == "one");
+    REQUIRE(program[1] == "two");
+  }
+
+  SECTION("flag short")
+  {
+    std::vector<std::string_view> cmdline = {"-f", "one", "two"};
+    REQUIRE_NOTHROW(program(args, cmdline));
+    REQUIRE(args.flag == true);
+    REQUIRE(program[0] == "one");
+    REQUIRE(program[1] == "two");
+  }
+
+  SECTION("flag long")
+  {
+    std::vector<std::string_view> cmdline = {"--flag", "one", "two"};
+    REQUIRE_NOTHROW(program(args, cmdline));
+    REQUIRE(args.flag == true);
+    REQUIRE(program[0] == "one");
+    REQUIRE(program[1] == "two");
+  }
+
+  SECTION("value short")
+  {
+    std::vector<std::string_view> cmdline = {"-v", "135", "one", "two"};
+    REQUIRE_NOTHROW(program(args, cmdline));
+    REQUIRE(args.value == 135);
+    REQUIRE(program[0] == "one");
+    REQUIRE(program[1] == "two");
+  }
+
+  SECTION("value short together")
+  {
+    std::vector<std::string_view> cmdline = {"-v135", "one", "two"};
+    REQUIRE_NOTHROW(program(args, cmdline));
+    REQUIRE(args.value == 135);
+    REQUIRE(program[0] == "one");
+    REQUIRE(program[1] == "two");
+  }
+
+  SECTION("value short together")
+  {
+    std::vector<std::string_view> cmdline = {"-v=135", "one", "two"};
+    REQUIRE_NOTHROW(program(args, cmdline));
+    REQUIRE(args.value == 135);
+    REQUIRE(program[0] == "one");
+    REQUIRE(program[1] == "two");
+  }
+
+  SECTION("value long")
+  {
+    std::vector<std::string_view> cmdline = {"--value", "135", "one", "two"};
+    REQUIRE_NOTHROW(program(args, cmdline));
+    REQUIRE(args.value == 135);
+    REQUIRE(program[0] == "one");
+    REQUIRE(program[1] == "two");
+  }
+
+  SECTION("value long equal")
+  {
+    std::vector<std::string_view> cmdline = {"--value=135", "one", "two"};
+    REQUIRE_NOTHROW(program(args, cmdline));
+    REQUIRE(args.value == 135);
+    REQUIRE(program[0] == "one");
+    REQUIRE(program[1] == "two");
+  }
+
+  SECTION("flag short terminal")
+  {
+    std::vector<std::string_view> cmdline = {"--", "one", "-f", "two"};
+    REQUIRE_NOTHROW(program(args, cmdline));
+    REQUIRE(program[0] == "one");
+    REQUIRE(program[1] == "-f");
+    REQUIRE(program[2] == "two");
+  }
+
+  SECTION("invalid terminal")
+  {
+    std::vector<std::string_view> cmdline = {"one", "--", "-f", "two"};
+    REQUIRE_THROWS_AS(program(args, cmdline), error<error_code::invalid_terminal>);
+  }
+
+  SECTION("flag short non-terminal")
+  {
+    std::vector<std::string_view> cmdline = {"one", "-f", "two"};
+    REQUIRE_THROWS_AS(program(args, cmdline), error<error_code::invalid_positional>);
+  }
+
+  SECTION("flag long non-terminal")
+  {
+    std::vector<std::string_view> cmdline = {"one", "--flag", "two"};
+    REQUIRE_THROWS_AS(program(args, cmdline), error<error_code::invalid_positional>);
+  }
+}
+
 TEST_CASE("multiple", "[poafloc/parser]")
 {
   struct arguments
@@ -398,7 +524,7 @@ TEST_CASE("multiple", "[poafloc/parser]")
     std::string value2 = "default";
   } args;
 
-  const auto program = parser<arguments> {
+  auto program = parser<arguments> {
       option {"f flag1", &arguments::flag1},
       option {"F flag2", &arguments::flag2},
       option {"v value1", &arguments::value1},

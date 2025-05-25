@@ -264,8 +264,10 @@ public:
 }  // namespace detail
 
 template<class Record>
-class parser
+class parser : public std::vector<std::string>
 {
+  using positional = std::vector<std::string>;
+
   using option_t = option_base<Record>;
   std::vector<option_t> m_options;
 
@@ -414,25 +416,31 @@ public:
     (process(args, args.opts()), ...);
   }
 
-  void operator()(Record& record, const char* argc, int argv) const
+  void operator()(Record& record, const char* argc, int argv)
   {
     operator()(record, std::span(argc, argv));
   }
 
-  void operator()(Record& record, std::span<std::string_view> args) const
+  void operator()(Record& record, std::span<std::string_view> args)
   {
     std::size_t arg_idx = 0;
+    bool terminal = false;
 
     for (; arg_idx != std::size(args); ++arg_idx) {
       const auto arg_raw = args[arg_idx];
 
       if (arg_raw == "--") {
+        terminal = true;
+        ++arg_idx;
         break;
       }
-      if (arg_raw[0] != '-' || arg_raw.size() < 2) {
-        // TODO positional arg
-        unhandled_positional(arg_raw);
-        continue;
+
+      if (arg_raw[0] != '-') {
+        break;
+      }
+
+      if (arg_raw.size() == 1) {
+        throw error<error_code::unknown_option>("-");
       }
 
       const auto res = arg_raw[1] != '-'
@@ -452,7 +460,14 @@ public:
     }
 
     for (; arg_idx != std::size(args); ++arg_idx) {
-      unhandled_positional(args[arg_idx]);
+      const auto arg = args[arg_idx];
+      if (!terminal && arg == "--") {
+        throw error<error_code::invalid_terminal>(arg);
+      }
+      if (!terminal && (arg.starts_with("-") || arg.starts_with("--"))) {
+        throw error<error_code::invalid_positional>(arg);
+      }
+      positional::emplace_back(arg);
     }
   }
 };

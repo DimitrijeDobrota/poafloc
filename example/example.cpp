@@ -29,7 +29,7 @@ int main()
   using poafloc::option;
   using poafloc::parser;
 
-  const auto program = parser<arguments> {
+  auto program = parser<arguments> {
       option {
           "v value",
           &arguments::val,
