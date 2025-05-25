@@ -90,142 +90,108 @@ namespace detail
 
 struct option_base
 {
+  using size_t = std::size_t;
   using value_type = std::size_t;
   using optional_type = std::optional<value_type>;
 
   static constexpr const auto sentinel = value_type {0xFFFFFFFFFFFFFFFF};
 
-  static constexpr bool is_alnum(char c)
+  static constexpr bool is_digit(char c) { return c >= '0' && c <= '9'; }
+  static constexpr bool is_alpha_lower(char c) { return c >= 'a' && c <= 'z'; }
+  static constexpr bool is_alpha_upper(char c) { return c >= 'A' && c <= 'Z'; }
+
+  static constexpr auto convert(char chr)
   {
-    return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')
-        || (c >= '0' && c <= '9');
-  }
-
-  static constexpr bool is_alpha(char c)
-  {
-    return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z');
-  }
-
-  static constexpr const auto size_char = 256;
-  static constexpr const auto size = []()
-  {
-    std::size_t count = 0;
-
-    for (std::size_t idx = 0; idx < size_char; ++idx) {
-      const char c = static_cast<char>(idx);
-      if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')
-          || (c >= '0' && c <= '9'))
-      {
-        count++;
-        continue;
-      }
-    }
-    return count;
-  }();
-
-  static constexpr const auto mapping = []()
-  {
-    std::array<std::size_t, size_char> res = {};
-    std::size_t count = 0;
-
-    for (std::size_t idx = 0; idx < std::size(res); ++idx) {
-      const char c = static_cast<char>(idx);
-      if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')
-          || (c >= '0' && c <= '9'))
-      {
-        res[idx] = count++;
-        continue;
-      }
-
-      res[idx] = sentinel;
-    }
-
-    return res;
-  }();
-
-  using container_type = std::array<value_type, size>;
-
-  static auto convert(char chr)
-  {
-    return mapping[static_cast<container_type::size_type>(
-        static_cast<unsigned char>(chr)
-    )];
+    return static_cast<size_t>(static_cast<unsigned char>(chr));
   }
 };
 
 class option_short : option_base
 {
-  container_type m_opts = {};
+  static constexpr auto size = static_cast<size_t>(2 * 26);
+  std::array<value_type, size> m_opts = {};
 
-  static auto convert(char chr)
+  static constexpr auto map(char chr)
   {
-    if (!is_alpha(chr)) {
-      throw error<error_code::invalid_char>(chr);
+    if (is_alpha_lower(chr)) {
+      return convert(chr) - convert('a');
     }
 
-    return option_base::convert(chr);
+    return convert(chr) - convert('A') + 26;  // NOLINT(*magic*)
   }
 
   [[nodiscard]] bool has(char chr) const
   {
-    return m_opts[convert(chr)] != sentinel;
+    return m_opts[map(chr)] != sentinel;
   }
 
 public:
   option_short() { m_opts.fill(sentinel); }
 
-  static bool is_valid(char chr) { return option_base::is_alpha(chr); }
+  static constexpr bool is_valid(char chr)
+  {
+    return is_alpha_lower(chr) || is_alpha_upper(chr);
+  }
 
   [[nodiscard]] bool set(char chr, value_type idx)
   {
+    if (!is_valid(chr)) {
+      throw error<error_code::invalid_option>(chr);
+    }
+
     if (has(chr)) {
       return false;
     }
 
-    m_opts[convert(chr)] = idx;
+    m_opts[map(chr)] = idx;
     return true;
   }
 
   [[nodiscard]] optional_type get(char chr) const
   {
+    if (!is_valid(chr)) {
+      throw error<error_code::invalid_option>(chr);
+    }
+
     if (!has(chr)) {
       return {};
     }
 
-    return m_opts[convert(chr)];
+    return m_opts[map(chr)];
   }
 };
 
 class option_long : option_base
 {
-  static auto convert(char chr)
-  {
-    if (!is_alnum(chr)) {
-      throw error<error_code::invalid_char>(chr);
-    }
-
-    return option_base::convert(chr);
-  }
-
   class trie_t
   {
+    static constexpr auto size = static_cast<size_t>(26ULL + 10ULL);
     std::array<std::unique_ptr<trie_t>, size> m_children = {};
+
     value_type m_value = sentinel;
     std::size_t m_count = 0;
     bool m_terminal = false;
+
+    static constexpr auto map(char chr)
+    {
+      if (is_alpha_lower(chr)) {
+        return convert(chr) - convert('a');
+      }
+
+      return convert(chr) - convert('0') + 26;  // NOLINT(*magic*)
+    }
 
   public:
     static bool set(trie_t& trie, std::string_view key, value_type value)
     {
       trie_t* crnt = &trie;
-
       for (const auto c : key) {
         crnt->m_count++;
         if (!crnt->m_terminal) {
           crnt->m_value = value;
         }
 
-        const auto idx = convert(c);
+        const auto idx = map(c);
         if (crnt->m_children[idx] == nullptr) {
           crnt->m_children[idx] = std::make_unique<trie_t>();
         }
@@ -246,7 +212,7 @@ class option_long : option_base
       const trie_t* crnt = &trie;
 
       for (const auto c : key) {
-        const auto idx = convert(c);
+        const auto idx = map(c);
         if (crnt->m_children[idx] == nullptr) {
           return {};
         }
@@ -264,18 +230,33 @@ class option_long : option_base
   trie_t m_trie;
 
 public:
-  static bool is_valid(std::string_view opt)
+  static constexpr bool is_valid(std::string_view opt)
   {
-    return std::ranges::all_of(opt, option_base::is_alnum);
+    return is_alpha_lower(opt.front())
+        && std::ranges::all_of(
+               opt,
+               [](const char chr)
+               {
+                 return is_alpha_lower(chr) || is_digit(chr);
+               }
+        );
   }
 
   [[nodiscard]] bool set(std::string_view opt, value_type idx)
   {
+    if (!is_valid(opt)) {
+      throw error<error_code::invalid_option>(opt);
+    }
+
     return trie_t::set(m_trie, opt, idx);
   }
 
   [[nodiscard]] optional_type get(std::string_view opt) const
   {
+    if (!is_valid(opt)) {
+      throw error<error_code::invalid_option>(opt);
+    }
+
     return trie_t::get(m_trie, opt);
   }
 };
@@ -299,21 +280,11 @@ class parser
     while (std::getline(istr, str, ' ')) {
       if (std::size(str) == 1) {
         const auto& opt = str[0];
-
-        if (!detail::option_short::is_valid(opt)) {
-          throw error<error_code::invalid_option>(opt);
-        }
-
         if (!m_opt_short.set(opt, std::size(m_options))) {
           throw error<error_code::duplicate_option>(opt);
         }
       } else {
         const auto& opt = str;
-
-        if (!detail::option_long::is_valid(opt)) {
-          throw error<error_code::invalid_option>(opt);
-        }
-
         if (!m_opt_long.set(opt, std::size(m_options))) {
           throw error<error_code::duplicate_option>(opt);
         }

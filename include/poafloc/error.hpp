@@ -11,8 +11,8 @@ namespace poafloc
 {
 
 #define ENUM_ERROR                                                             \
-  invalid_char, invalid_option, missing_argument, superfluous_argument,        \
-      unknown_option, duplicate_option
+  invalid_option, missing_argument, superfluous_argument, unknown_option,      \
+      duplicate_option
 BASED_DECLARE_ENUM(error_code, based::bu8, 0, ENUM_ERROR)
 BASED_DEFINE_ENUM(error_code, based::bu8, 0, ENUM_ERROR)
 #undef ENUM_ERROR
@@ -20,8 +20,6 @@ BASED_DEFINE_ENUM(error_code, based::bu8, 0, ENUM_ERROR)
 static constexpr const char* error_get_message(error_code::enum_type error)
 {
   switch (error()) {
-    case error_code::invalid_char():
-      return "Invalid char in option: {}";
     case error_code::invalid_option():
       return "Invalid option name: {}";
     case error_code::missing_argument():

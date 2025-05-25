@@ -21,7 +21,40 @@ TEST_CASE("invalid", "[poafloc/parser]")
     int value;
   };
 
-  SECTION("duplicate short")
+  SECTION("short number")
+  {
+    const auto construct = []()
+    {
+      return parser<arguments> {
+          option {"1", &arguments::flag},
+      };
+    };
+    REQUIRE_THROWS_AS(construct(), error<error_code::invalid_option>);
+  }
+
+  SECTION("long upper")
+  {
+    const auto construct = []()
+    {
+      return parser<arguments> {
+          option {"FLAG", &arguments::flag},
+      };
+    };
+    REQUIRE_THROWS_AS(construct(), error<error_code::invalid_option>);
+  }
+
+  SECTION("long number start")
+  {
+    const auto construct = []()
+    {
+      return parser<arguments> {
+          option {"1value", &arguments::value},
+      };
+    };
+    REQUIRE_THROWS_AS(construct(), error<error_code::invalid_option>);
+  }
+
+  SECTION("short duplicate")
   {
     const auto construct = []()
     {
@@ -33,7 +66,7 @@ TEST_CASE("invalid", "[poafloc/parser]")
     REQUIRE_THROWS_AS(construct(), error<error_code::duplicate_option>);
   }
 
-  SECTION("duplicate long")
+  SECTION("long duplicate")
   {
     const auto construct = []()
     {
