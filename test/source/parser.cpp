@@ -125,6 +125,13 @@ TEST_CASE("option string", "[poafloc/parser]")
     REQUIRE(args.name == "something");
   }
 
+  SECTION("short equal")
+  {
+    std::vector<std::string_view> cmdline = {"-n=something"};
+    REQUIRE_NOTHROW(program(args, cmdline));
+    REQUIRE(args.name == "something");
+  }
+
   SECTION("short together")
   {
     std::vector<std::string_view> cmdline = {"-nsomething"};
@@ -163,6 +170,13 @@ TEST_CASE("option string", "[poafloc/parser]")
   SECTION("short missing")
   {
     std::vector<std::string_view> cmdline = {"-n"};
+    REQUIRE_THROWS_AS(program(args, cmdline), error<error_code::missing_argument>);
+    REQUIRE(args.name == "default");
+  }
+
+  SECTION("short equal missing")
+  {
+    std::vector<std::string_view> cmdline = {"-n="};
     REQUIRE_THROWS_AS(program(args, cmdline), error<error_code::missing_argument>);
     REQUIRE(args.name == "default");
   }
@@ -235,6 +249,13 @@ TEST_CASE("option value", "[poafloc/parser]")
     REQUIRE(args.value == 135);
   }
 
+  SECTION("short equal")
+  {
+    std::vector<std::string_view> cmdline = {"-v=135"};
+    REQUIRE_NOTHROW(program(args, cmdline));
+    REQUIRE(args.value == 135);
+  }
+
   SECTION("short together")
   {
     std::vector<std::string_view> cmdline = {"-v135"};
@@ -273,6 +294,13 @@ TEST_CASE("option value", "[poafloc/parser]")
   SECTION("short missing")
   {
     std::vector<std::string_view> cmdline = {"-v"};
+    REQUIRE_THROWS_AS(program(args, cmdline), error<error_code::missing_argument>);
+    REQUIRE(args.value == 0);
+  }
+
+  SECTION("short equal missing")
+  {
+    std::vector<std::string_view> cmdline = {"-v="};
     REQUIRE_THROWS_AS(program(args, cmdline), error<error_code::missing_argument>);
     REQUIRE(args.value == 0);
   }
@@ -367,6 +395,26 @@ TEST_CASE("multiple", "[poafloc/parser]")
   SECTION("together")
   {
     std::vector<std::string_view> cmdline = {"-fvF"};
+    REQUIRE_NOTHROW(program(args, cmdline));
+    REQUIRE(args.flag1 == true);
+    REQUIRE(args.flag2 == false);
+    REQUIRE(args.value1 == "F");
+    REQUIRE(args.value2 == "default");
+  }
+
+  SECTION("together equal")
+  {
+    std::vector<std::string_view> cmdline = {"-fv=F"};
+    REQUIRE_NOTHROW(program(args, cmdline));
+    REQUIRE(args.flag1 == true);
+    REQUIRE(args.flag2 == false);
+    REQUIRE(args.value1 == "F");
+    REQUIRE(args.value2 == "default");
+  }
+
+  SECTION("together next")
+  {
+    std::vector<std::string_view> cmdline = {"-fv", "F"};
     REQUIRE_NOTHROW(program(args, cmdline));
     REQUIRE(args.flag1 == true);
     REQUIRE(args.flag2 == false);

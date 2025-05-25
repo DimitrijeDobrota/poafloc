@@ -95,10 +95,15 @@ struct option_base
 
   static constexpr const auto sentinel = value_type {0xFFFFFFFFFFFFFFFF};
 
-  static constexpr bool is_valid(char c)
+  static constexpr bool is_alnum(char c)
   {
     return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')
         || (c >= '0' && c <= '9');
+  }
+
+  static constexpr bool is_alpha(char c)
+  {
+    return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z');
   }
 
   static constexpr const auto size_char = 256;
@@ -142,10 +147,6 @@ struct option_base
 
   static auto convert(char chr)
   {
-    if (!is_valid(chr)) {
-      throw error<error_code::invalid_char>(chr);
-    }
-
     return mapping[static_cast<container_type::size_type>(
         static_cast<unsigned char>(chr)
     )];
@@ -156,6 +157,15 @@ class option_short : option_base
 {
   container_type m_opts = {};
 
+  static auto convert(char chr)
+  {
+    if (!is_alpha(chr)) {
+      throw error<error_code::invalid_char>(chr);
+    }
+
+    return option_base::convert(chr);
+  }
+
   [[nodiscard]] bool has(char chr) const
   {
     return m_opts[convert(chr)] != sentinel;
@@ -163,6 +173,8 @@ class option_short : option_base
 
 public:
   option_short() { m_opts.fill(sentinel); }
+
+  static bool is_valid(char chr) { return option_base::is_alpha(chr); }
 
   [[nodiscard]] bool set(char chr, value_type idx)
   {
@@ -186,6 +198,15 @@ public:
 
 class option_long : option_base
 {
+  static auto convert(char chr)
+  {
+    if (!is_alnum(chr)) {
+      throw error<error_code::invalid_char>(chr);
+    }
+
+    return option_base::convert(chr);
+  }
+
   class trie_t
   {
     std::array<std::unique_ptr<trie_t>, size> m_children = {};
@@ -243,6 +264,11 @@ class option_long : option_base
   trie_t m_trie;
 
 public:
+  static bool is_valid(std::string_view opt)
+  {
+    return std::ranges::all_of(opt, option_base::is_alnum);
+  }
+
   [[nodiscard]] bool set(std::string_view opt, value_type idx)
   {
     return trie_t::set(m_trie, opt, idx);
@@ -273,11 +299,21 @@ class parser
     while (std::getline(istr, str, ' ')) {
       if (std::size(str) == 1) {
         const auto& opt = str[0];
+
+        if (!detail::option_short::is_valid(opt)) {
+          throw error<error_code::invalid_option>(opt);
+        }
+
         if (!m_opt_short.set(opt, std::size(m_options))) {
           throw error<error_code::duplicate_option>(opt);
         }
       } else {
         const auto& opt = str;
+
+        if (!detail::option_long::is_valid(opt)) {
+          throw error<error_code::invalid_option>(opt);
+        }
+
         if (!m_opt_long.set(opt, std::size(m_options))) {
           throw error<error_code::duplicate_option>(opt);
         }
@@ -349,7 +385,7 @@ class parser
     }
 
     if (!next.empty()) {
-      option(record, *std::begin(next));
+      option(record, next.front());
       return handle_res::next;
     }
 
@@ -369,14 +405,25 @@ class parser
         continue;
       }
 
-      if (opt_idx + 1 != std::size(arg)) {
-        option(record, arg.substr(opt_idx + 1));
-        break;
+      const auto rest = arg.substr(opt_idx + 1);
+      if (rest.empty()) {
+        if (!next.empty()) {
+          option(record, next.front());
+          return handle_res::next;
+        }
+
+        throw error<error_code::missing_argument>(opt);
       }
 
-      if (!next.empty()) {
-        option(record, *std::begin(next));
-        return handle_res::next;
+      if (rest.front() != '=') {
+        option(record, rest);
+        return handle_res::ok;
+      }
+
+      const auto value = rest.substr(1);
+      if (!value.empty()) {
+        option(record, value);
+        return handle_res::ok;
       }
 
       throw error<error_code::missing_argument>(opt);
@@ -408,14 +455,10 @@ public:
     for (; arg_idx != std::size(args); ++arg_idx) {
       const auto arg_raw = args[arg_idx];
 
-      if (arg_raw.size() < 2) {
-        throw error<error_code::unknown_option>(arg_raw);
-      }
-
       if (arg_raw == "--") {
         break;
       }
-      if (arg_raw[0] != '-') {
+      if (arg_raw[0] != '-' || arg_raw.size() < 2) {
         // TODO positional arg
         unhandled_positional(arg_raw);
         continue;
