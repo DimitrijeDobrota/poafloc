@@ -20,8 +20,7 @@ find_package(based 0.2.0 CONFIG REQUIRED)
 add_library(
     poafloc_poafloc
     source/poafloc.cpp
-    # source/help.cpp
-    # source/trie.cpp
+    source/option.cpp
 )
 add_library(poafloc::poafloc ALIAS poafloc_poafloc)
 target_link_libraries(poafloc_poafloc PUBLIC based::based)
