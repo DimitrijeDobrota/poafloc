@@ -26,31 +26,32 @@ public:
 
 int main()
 {
-  using poafloc::option;
+  using poafloc::direct;
+  using poafloc::boolean;
   using poafloc::parser;
 
   auto program = parser<arguments> {
-      option {
+      direct {
           "v value",
           &arguments::val,
       },
-      option {
+      direct {
           "m multiply",
           &arguments::mul,
       },
-      option {
+      direct {
           "n name",
           &arguments::name,
       },
-      option {
+      direct {
           "p priv",
           &arguments::set_priv,
       },
-      option {
+      boolean {
           "f flag1",
           &arguments::flag1,
       },
-      option {
+      boolean {
           "F flag2",
           &arguments::flag2,
       },

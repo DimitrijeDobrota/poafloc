@@ -7,9 +7,10 @@
 
 #include "poafloc/poafloc.hpp"
 
+using poafloc::boolean;
+using poafloc::direct;
 using poafloc::error;
 using poafloc::error_code;
-using poafloc::option;
 using poafloc::parser;
 
 // NOLINTBEGIN(*complexity*)
@@ -26,7 +27,7 @@ TEST_CASE("invalid", "[poafloc/parser]")
     auto construct = []()
     {
       return parser<arguments> {
-          option {"1", &arguments::flag},
+          boolean {"1", &arguments::flag},
       };
     };
     REQUIRE_THROWS_AS(construct(), error<error_code::invalid_option>);
@@ -37,7 +38,7 @@ TEST_CASE("invalid", "[poafloc/parser]")
     auto construct = []()
     {
       return parser<arguments> {
-          option {"FLAG", &arguments::flag},
+          boolean {"FLAG", &arguments::flag},
       };
     };
     REQUIRE_THROWS_AS(construct(), error<error_code::invalid_option>);
@@ -48,7 +49,7 @@ TEST_CASE("invalid", "[poafloc/parser]")
     auto construct = []()
     {
       return parser<arguments> {
-          option {"1value", &arguments::value},
+          direct {"1value", &arguments::value},
       };
     };
     REQUIRE_THROWS_AS(construct(), error<error_code::invalid_option>);
@@ -59,8 +60,8 @@ TEST_CASE("invalid", "[poafloc/parser]")
     auto construct = []()
     {
       return parser<arguments> {
-          option {"f flag", &arguments::flag},
-          option {"f follow", &arguments::value},
+          boolean {"f flag", &arguments::flag},
+          direct {"f follow", &arguments::value},
       };
     };
     REQUIRE_THROWS_AS(construct(), error<error_code::duplicate_option>);
@@ -71,8 +72,8 @@ TEST_CASE("invalid", "[poafloc/parser]")
     auto construct = []()
     {
       return parser<arguments> {
-          option {"f flag", &arguments::flag},
-          option {"v flag", &arguments::value},
+          boolean {"f flag", &arguments::flag},
+          direct {"v flag", &arguments::value},
       };
     };
     REQUIRE_THROWS_AS(construct(), error<error_code::duplicate_option>);
@@ -87,7 +88,7 @@ TEST_CASE("flag", "[poafloc/parser]")
   } args;
 
   auto program = parser<arguments> {
-      option {"f flag", &arguments::flag},
+      boolean {"f flag", &arguments::flag},
   };
 
   SECTION("short")
@@ -148,7 +149,7 @@ TEST_CASE("option string", "[poafloc/parser]")
   } args;
 
   auto program = parser<arguments> {
-      option {"n name", &arguments::name},
+      direct {"n name", &arguments::name},
   };
 
   SECTION("short")
@@ -272,7 +273,7 @@ TEST_CASE("option value", "[poafloc/parser]")
   } args;
 
   auto program = parser<arguments> {
-      option {"v value", &arguments::value},
+      direct {"v value", &arguments::value},
   };
 
   SECTION("short")
@@ -397,8 +398,8 @@ TEST_CASE("positional", "[poafloc/parser]")
   } args;
 
   auto program = parser<arguments> {
-      option {"f flag", &arguments::flag},
-      option {"v value", &arguments::value},
+      boolean {"f flag", &arguments::flag},
+      direct {"v value", &arguments::value},
   };
 
   SECTION("empty")
@@ -525,10 +526,10 @@ TEST_CASE("multiple", "[poafloc/parser]")
   } args;
 
   auto program = parser<arguments> {
-      option {"f flag1", &arguments::flag1},
-      option {"F flag2", &arguments::flag2},
-      option {"v value1", &arguments::value1},
-      option {"V value2", &arguments::value2},
+      boolean {"f flag1", &arguments::flag1},
+      boolean {"F flag2", &arguments::flag2},
+      direct {"v value1", &arguments::value1},
+      direct {"V value2", &arguments::value2},
   };
 
   SECTION("valid")

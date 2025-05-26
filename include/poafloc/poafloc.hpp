@@ -13,28 +13,58 @@
 #include <string_view>
 #include <vector>
 
+#include <based/enum/enum.hpp>
+#include <based/types/types.hpp>
+
 #include "poafloc/error.hpp"
 
 namespace poafloc
 {
 
-template<class Record>
-class option_base
+namespace detail
 {
+
+template<class Record>
+class option
+{
+public:
+  enum class type : based::bu8
+  {
+    direct,
+    optional,
+    boolean,
+    list,
+  };
+
+private:
   using func_t = std::function<void(Record&, std::string_view)>;
 
+  type m_type;
+  std::string m_opts;
   func_t m_func;
-  bool m_arg;
 
 protected:
-  explicit option_base(func_t func, bool argument)
-      : m_func(std::move(func))
-      , m_arg(argument)
+  explicit option(type type, std::string_view opts, func_t func)
+      : m_type(type)
+      , m_opts(opts)
+      , m_func(std::move(func))
   {
   }
 
+  template<class T>
+  static T convert(std::string_view value)
+  {
+    T tmp;
+    auto istr = std::istringstream(std::string(value));
+    istr >> tmp;
+    return tmp;
+  }
+
 public:
-  [[nodiscard]] bool argument() const { return m_arg; }
+  using record_type = Record;
+
+  [[nodiscard]] const std::string& opts() const { return m_opts; }
+  [[nodiscard]] type type() const { return m_type; }
 
   void operator()(Record& record, std::string_view value) const
   {
@@ -42,11 +72,13 @@ public:
   }
 };
 
-template<class Record, class Type>
-class option : public option_base<Record>
-{
-  std::string m_opts;
+}  // namespace detail
 
+template<class Record, class Type>
+  requires(!std::same_as<bool, Type>)
+class direct : public detail::option<Record>
+{
+  using base = detail::option<Record>;
   using member_type = Type Record::*;
 
   static auto create(member_type member)
@@ -56,39 +88,49 @@ class option : public option_base<Record>
       if constexpr (std::is_invocable_v<member_type, Record, std::string_view>)
       {
         std::invoke(member, record, value);
-      } else if constexpr (std::same_as<bool, Type>) {
-        std::invoke(member, record) = true;
-      } else if constexpr (requires(Type tmp, std::string_view val) {
-                             tmp = val;
-                           })
-      {
+      } else if constexpr (std::is_invocable_v<member_type, Record, Type>) {
+        std::invoke(member, record, base::template convert<Type>(value));
+      } else if constexpr (std::is_assignable_v<Type, std::string_view>) {
         std::invoke(member, record) = value;
       } else {
-        auto istr = std::istringstream(std::string(value));
-        Type tmp;
-        istr >> tmp;
-        std::invoke(member, record) = tmp;
+        std::invoke(member, record) = base::template convert<Type>(value);
       }
     };
   }
 
 public:
-  using record_type = Record;
-  using value_type = Type;
-
-  option(std::string_view opts, member_type member)
-      : option_base<Record>(create(member), !std::same_as<bool, Type>)
-      , m_opts(opts)
+  direct(std::string_view opts, member_type member)
+      : base(base::type::direct, opts, create(member))
   {
   }
+};
 
-  [[nodiscard]] const std::string& opts() const { return m_opts; }
+template<class Record>
+class boolean : public detail::option<Record>
+{
+  using base = detail::option<Record>;
+  using member_type = bool Record::*;
+
+  static auto create(member_type member)
+  {
+    return [member](Record& record, std::string_view value)
+    {
+      (void)value;
+      std::invoke(member, record) = true;
+    };
+  }
+
+public:
+  boolean(std::string_view opts, member_type member)
+      : base(base::type::boolean, opts, create(member))
+  {
+  }
 };
 
 namespace detail
 {
 
-struct option_base
+struct option_lookup_base
 {
   using size_t = std::size_t;
   using value_type = std::size_t;
@@ -106,7 +148,7 @@ struct option_base
   }
 };
 
-class option_short : option_base
+class option_short : option_lookup_base
 {
   static constexpr auto size = static_cast<size_t>(2 * 26);
   std::array<value_type, size> m_opts = {};
@@ -161,7 +203,7 @@ public:
   }
 };
 
-class option_long : option_base
+class option_long : option_lookup_base
 {
   class trie_t
   {
@@ -268,13 +310,23 @@ class parser : public std::vector<std::string>
 {
   using positional = std::vector<std::string>;
 
-  using option_t = option_base<Record>;
+  using option_t = detail::option<Record>;
   std::vector<option_t> m_options;
 
   detail::option_short m_opt_short;
   detail::option_long m_opt_long;
 
-  void process(const option_base<Record>& option, std::string_view opts)
+  static constexpr bool is_option(std::string_view arg)
+  {
+    return arg.starts_with("-");
+  }
+
+  static constexpr bool is_next_option(std::span<std::string_view> args)
+  {
+    return !args.empty() && is_option(args.front());
+  }
+
+  void process(const detail::option<Record>& option, std::string_view opts)
   {
     auto istr = std::istringstream(std::string(opts));
     std::string str;
@@ -338,7 +390,7 @@ class parser : public std::vector<std::string>
 
       const auto option = get_option(opt);
 
-      if (!option.argument()) {
+      if (option.type() == option_t::type::boolean) {
         throw error<error_code::superfluous_argument>(opt);
       }
 
@@ -352,7 +404,7 @@ class parser : public std::vector<std::string>
 
     const auto option = get_option(arg);
 
-    if (!option.argument()) {
+    if (option.type() == option_t::type::boolean) {
       option(record, "true");
       return handle_res::ok;
     }
@@ -373,7 +425,7 @@ class parser : public std::vector<std::string>
       const auto opt = arg[opt_idx];
       const auto option = get_option(opt);
 
-      if (!option.argument()) {
+      if (option.type() == option_t::type::boolean) {
         option(record, "true");
         continue;
       }
@@ -429,18 +481,18 @@ public:
     for (; arg_idx != std::size(args); ++arg_idx) {
       const auto arg_raw = args[arg_idx];
 
-      if (arg_raw == "--") {
-        terminal = true;
-        ++arg_idx;
-        break;
-      }
-
-      if (arg_raw[0] != '-') {
+      if (!is_option(arg_raw)) {
         break;
       }
 
       if (arg_raw.size() == 1) {
         throw error<error_code::unknown_option>("-");
+      }
+
+      if (arg_raw == "--") {
+        terminal = true;
+        ++arg_idx;
+        break;
       }
 
       const auto res = arg_raw[1] != '-'
@@ -464,7 +516,7 @@ public:
       if (!terminal && arg == "--") {
         throw error<error_code::invalid_terminal>(arg);
       }
-      if (!terminal && (arg.starts_with("-") || arg.starts_with("--"))) {
+      if (!terminal && is_option(arg)) {
         throw error<error_code::invalid_positional>(arg);
       }
       positional::emplace_back(arg);
