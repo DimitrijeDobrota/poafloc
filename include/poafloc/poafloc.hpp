@@ -5,6 +5,7 @@
 #include <cstring>
 #include <format>
 #include <functional>
+#include <initializer_list>
 #include <memory>
 #include <optional>
 #include <span>
@@ -13,7 +14,7 @@
 #include <string_view>
 #include <vector>
 
-#include <based/enum/enum.hpp>
+#include <based/trait/integral_constant.hpp>
 #include <based/types/types.hpp>
 
 #include "poafloc/error.hpp"
@@ -106,6 +107,43 @@ public:
   }
 };
 
+namespace detail
+{
+
+template<class T>
+struct is_argument : based::false_type
+{
+};
+
+template<class Record, class Type>
+struct is_argument<argument<Record, Type>> : based::true_type
+{
+};
+
+template<class T>
+concept IsArgument = is_argument<T>::value;
+
+}  // namespace detail
+
+template<class Record>
+class positional : public std::vector<detail::option<Record>>
+{
+  using option_t = detail::option<Record>;
+  using base = std::vector<option_t>;
+
+public:
+  explicit positional(detail::IsArgument auto... args)
+    requires(std::same_as<Record, typename decltype(args)::record_type> && ...)
+      : base(std::initializer_list<option_t> {
+            based::forward<decltype(args)>(args)...
+        })
+  {
+  }
+};
+
+positional(detail::IsArgument auto arg, detail::IsArgument auto... args)
+    -> positional<typename decltype(arg)::record_type>;
+
 template<class Record, class Type>
   requires(!std::same_as<bool, Type>)
 class direct : public detail::option<Record>
@@ -141,6 +179,58 @@ public:
   {
   }
 };
+
+namespace detail
+{
+
+template<class T>
+struct is_option : based::false_type
+{
+};
+
+template<class Record, class Type>
+struct is_option<direct<Record, Type>> : based::true_type
+{
+};
+
+template<class Record>
+struct is_option<boolean<Record>> : based::true_type
+{
+};
+
+template<class T>
+concept IsOption = is_option<T>::value;
+
+}  // namespace detail
+
+template<class Record>
+class group : public std::vector<detail::option<Record>>
+{
+  using option_t = detail::option<Record>;
+  using base = std::vector<option_t>;
+
+  std::string m_name;
+
+public:
+  using record_type = Record;
+
+  explicit group(std::string_view name, detail::IsOption auto... args)
+    requires(std::same_as<Record, typename decltype(args)::record_type> && ...)
+      : base(std::initializer_list<option_t> {
+            based::forward<decltype(args)>(args)...
+        })
+      , m_name(name)
+  {
+  }
+
+  [[nodiscard]] const auto& name() const { return m_name; }
+};
+
+group(
+    std::string_view name,
+    detail::IsOption auto arg,
+    detail::IsOption auto... args
+) -> group<typename decltype(arg)::record_type>;
 
 namespace detail
 {
@@ -325,7 +415,11 @@ class parser
 {
   using option_t = detail::option<Record>;
   std::vector<option_t> m_options;
-  std::vector<option_t> m_args;
+
+  using positional_t = positional<Record>;
+  positional_t m_positional;
+
+  using group_t = group<Record>;
 
   detail::option_short m_opt_short;
   detail::option_long m_opt_long;
@@ -340,13 +434,8 @@ class parser
     return !args.empty() && is_option(args.front());
   }
 
-  void process(const detail::option<Record>& option, std::string_view opts)
+  void process(const option_t& option, std::string_view opts)
   {
-    if (option.type() == option_t::type::argument) {
-      m_args.emplace_back(option);
-      return;
-    }
-
     auto istr = std::istringstream(std::string(opts));
     std::string str;
 
@@ -365,6 +454,13 @@ class parser
     }
 
     m_options.emplace_back(option);
+  }
+
+  void process_group(const group_t& group)
+  {
+    for (const auto& option : group) {
+      process(option, option.opts());
+    }
   }
 
   [[nodiscard]] const option_t& get_option(char opt) const
@@ -477,14 +573,21 @@ class parser
   }
 
 public:
-  template<class... Args>
-  explicit parser(Args&&... args)
-    requires(std::same_as<Record, typename Args::record_type> && ...)
+  template<class... Groups>
+  explicit parser(Groups&&... groups)
+    requires(std::same_as<group_t, Groups> && ...)
   {
-    constexpr auto size = sizeof...(Args);
+    m_options.reserve(m_options.size() + (groups.size() + ...));
+    (process_group(groups), ...);
+  }
 
-    m_options.reserve(size);
-    (process(args, args.opts()), ...);
+  template<class... Groups>
+  explicit parser(positional_t positional, Groups&&... groups)
+    requires(std::same_as<group_t, Groups> && ...)
+      : m_positional(std::move(positional))
+  {
+    m_options.reserve(m_options.size() + (groups.size() + ...));
+    (process_group(groups), ...);
   }
 
   void operator()(Record& record, int argc, const char** argv)
@@ -544,15 +647,15 @@ public:
         throw error<error_code::invalid_positional>(arg);
       }
 
-      if (count == m_args.size()) {
-        throw error<error_code::superfluous_positional>(m_args.size());
+      if (count == m_positional.size()) {
+        throw error<error_code::superfluous_positional>(m_positional.size());
       }
 
-      m_args[count++](record, arg);
+      m_positional[count++](record, arg);
     }
 
-    if (count != m_args.size()) {
-      throw error<error_code::missing_positional>(m_args.size());
+    if (count != m_positional.size()) {
+      throw error<error_code::missing_positional>(m_positional.size());
     }
   }
 };

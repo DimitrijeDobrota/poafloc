@@ -23,7 +23,10 @@ TEST_CASE("invalid", "[poafloc/parser]")
     auto construct = []()
     {
       return parser<arguments> {
-          boolean {"1", &arguments::flag},
+          group {
+              "unnamed",
+              boolean {"1", &arguments::flag},
+          },
       };
     };
     REQUIRE_THROWS_AS(construct(), error<error_code::invalid_option>);
@@ -34,7 +37,10 @@ TEST_CASE("invalid", "[poafloc/parser]")
     auto construct = []()
     {
       return parser<arguments> {
-          boolean {"FLAG", &arguments::flag},
+          group {
+              "unnamed",
+              boolean {"FLAG", &arguments::flag},
+          },
       };
     };
     REQUIRE_THROWS_AS(construct(), error<error_code::invalid_option>);
@@ -45,7 +51,10 @@ TEST_CASE("invalid", "[poafloc/parser]")
     auto construct = []()
     {
       return parser<arguments> {
-          direct {"1value", &arguments::value},
+          group {
+              "unnamed",
+              direct {"1value", &arguments::value},
+          },
       };
     };
     REQUIRE_THROWS_AS(construct(), error<error_code::invalid_option>);
@@ -56,8 +65,11 @@ TEST_CASE("invalid", "[poafloc/parser]")
     auto construct = []()
     {
       return parser<arguments> {
-          boolean {"f flag", &arguments::flag},
-          direct {"f follow", &arguments::value},
+          group {
+              "unnamed",
+              boolean {"f flag", &arguments::flag},
+              direct {"f follow", &arguments::value},
+          },
       };
     };
     REQUIRE_THROWS_AS(construct(), error<error_code::duplicate_option>);
@@ -68,8 +80,11 @@ TEST_CASE("invalid", "[poafloc/parser]")
     auto construct = []()
     {
       return parser<arguments> {
-          boolean {"f flag", &arguments::flag},
-          direct {"v flag", &arguments::value},
+          group {
+              "unnamed",
+              boolean {"f flag", &arguments::flag},
+              direct {"v flag", &arguments::value},
+          },
       };
     };
     REQUIRE_THROWS_AS(construct(), error<error_code::duplicate_option>);
@@ -84,7 +99,10 @@ TEST_CASE("flag", "[poafloc/parser]")
   } args;
 
   auto program = parser<arguments> {
-      boolean {"f flag", &arguments::flag},
+      group {
+          "unnamed",
+          boolean {"f flag", &arguments::flag},
+      },
   };
 
   SECTION("short")
@@ -145,7 +163,10 @@ TEST_CASE("option string", "[poafloc/parser]")
   } args;
 
   auto program = parser<arguments> {
-      direct {"n name", &arguments::name},
+      group {
+          "unnamed",
+          direct {"n name", &arguments::name},
+      },
   };
 
   SECTION("short")
@@ -269,7 +290,10 @@ TEST_CASE("option value", "[poafloc/parser]")
   } args;
 
   auto program = parser<arguments> {
-      direct {"v value", &arguments::value},
+      group {
+          "unnamed",
+          direct {"v value", &arguments::value},
+      },
   };
 
   SECTION("short")
@@ -396,10 +420,15 @@ TEST_CASE("positional", "[poafloc/parser]")
   } args;
 
   auto program = parser<arguments> {
-      boolean {"f flag", &arguments::flag},
-      direct {"v value", &arguments::value},
-      argument {"one", &arguments::one},
-      argument {"two", &arguments::two},
+      positional {
+          argument {"one", &arguments::one},
+          argument {"two", &arguments::two},
+      },
+      group {
+          "unnamed",
+          boolean {"f flag", &arguments::flag},
+          direct {"v value", &arguments::value},
+      }
   };
 
   SECTION("empty")
@@ -532,10 +561,13 @@ TEST_CASE("multiple", "[poafloc/parser]")
   } args;
 
   auto program = parser<arguments> {
-      boolean {"f flag1", &arguments::flag1},
-      boolean {"F flag2", &arguments::flag2},
-      direct {"v value1", &arguments::value1},
-      direct {"V value2", &arguments::value2},
+      group {
+          "unnamed",
+          boolean {"f flag1", &arguments::flag1},
+          boolean {"F flag2", &arguments::flag2},
+          direct {"v value1", &arguments::value1},
+          direct {"V value2", &arguments::value2},
+      },
   };
 
   SECTION("valid")

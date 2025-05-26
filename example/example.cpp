@@ -29,29 +29,32 @@ int main()
   using namespace poafloc;  // NOLINT
 
   auto program = parser<arguments> {
-      direct {
-          "v value",
-          &arguments::val,
-      },
-      direct {
-          "m multiply",
-          &arguments::mul,
-      },
-      direct {
-          "n name",
-          &arguments::name,
-      },
-      direct {
-          "p priv",
-          &arguments::set_priv,
-      },
-      boolean {
-          "f flag1",
-          &arguments::flag1,
-      },
-      boolean {
-          "F flag2",
-          &arguments::flag2,
+      group {
+          "standard",
+          direct {
+              "v value",
+              &arguments::val,
+          },
+          direct {
+              "m multiply",
+              &arguments::mul,
+          },
+          direct {
+              "n name",
+              &arguments::name,
+          },
+          direct {
+              "p priv",
+              &arguments::set_priv,
+          },
+          boolean {
+              "f flag1",
+              &arguments::flag1,
+          },
+          boolean {
+              "F flag2",
+              &arguments::flag2,
+          },
       },
   };
 
