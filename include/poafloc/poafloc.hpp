@@ -30,6 +30,7 @@ class option
 public:
   enum class type : based::bu8
   {
+    argument,
     direct,
     optional,
     boolean,
@@ -49,6 +50,23 @@ protected:
       , m_opts(opts)
       , m_func(std::move(func))
   {
+  }
+
+  template<class Type, class Member = Type Record::*>
+  static auto create(Member member)
+  {
+    return [member](Record& record, std::string_view value)
+    {
+      if constexpr (std::is_invocable_v<Member, Record, std::string_view>) {
+        std::invoke(member, record, value);
+      } else if constexpr (std::is_invocable_v<Member, Record, Type>) {
+        std::invoke(member, record, convert<Type>(value));
+      } else if constexpr (std::is_assignable_v<Type, std::string_view>) {
+        std::invoke(member, record) = value;
+      } else {
+        std::invoke(member, record) = convert<Type>(value);
+      }
+    };
   }
 
   template<class T>
@@ -76,31 +94,28 @@ public:
 
 template<class Record, class Type>
   requires(!std::same_as<bool, Type>)
+class argument : public detail::option<Record>
+{
+  using base = detail::option<Record>;
+  using member_type = Type Record::*;
+
+public:
+  explicit argument(std::string_view name, member_type member)
+      : base(base::type::argument, name, base::template create<Type>(member))
+  {
+  }
+};
+
+template<class Record, class Type>
+  requires(!std::same_as<bool, Type>)
 class direct : public detail::option<Record>
 {
   using base = detail::option<Record>;
   using member_type = Type Record::*;
 
-  static auto create(member_type member)
-  {
-    return [member](Record& record, std::string_view value)
-    {
-      if constexpr (std::is_invocable_v<member_type, Record, std::string_view>)
-      {
-        std::invoke(member, record, value);
-      } else if constexpr (std::is_invocable_v<member_type, Record, Type>) {
-        std::invoke(member, record, base::template convert<Type>(value));
-      } else if constexpr (std::is_assignable_v<Type, std::string_view>) {
-        std::invoke(member, record) = value;
-      } else {
-        std::invoke(member, record) = base::template convert<Type>(value);
-      }
-    };
-  }
-
 public:
-  direct(std::string_view opts, member_type member)
-      : base(base::type::direct, opts, create(member))
+  explicit direct(std::string_view opts, member_type member)
+      : base(base::type::direct, opts, base::template create<Type>(member))
   {
   }
 };
@@ -121,7 +136,7 @@ class boolean : public detail::option<Record>
   }
 
 public:
-  boolean(std::string_view opts, member_type member)
+  explicit boolean(std::string_view opts, member_type member)
       : base(base::type::boolean, opts, create(member))
   {
   }
@@ -306,12 +321,11 @@ public:
 }  // namespace detail
 
 template<class Record>
-class parser : public std::vector<std::string>
+class parser
 {
-  using positional = std::vector<std::string>;
-
   using option_t = detail::option<Record>;
   std::vector<option_t> m_options;
+  std::vector<option_t> m_args;
 
   detail::option_short m_opt_short;
   detail::option_long m_opt_long;
@@ -328,6 +342,11 @@ class parser : public std::vector<std::string>
 
   void process(const detail::option<Record>& option, std::string_view opts)
   {
+    if (option.type() == option_t::type::argument) {
+      m_args.emplace_back(option);
+      return;
+    }
+
     auto istr = std::istringstream(std::string(opts));
     std::string str;
 
@@ -468,9 +487,12 @@ public:
     (process(args, args.opts()), ...);
   }
 
-  void operator()(Record& record, const char* argc, int argv)
+  void operator()(Record& record, int argc, const char** argv)
   {
-    operator()(record, std::span(argc, argv));
+    std::vector<std::string_view> args(
+        argv + 1, argv + argc  // NOLINT(*pointer*)
+    );
+    operator()(record, args);
   }
 
   void operator()(Record& record, std::span<std::string_view> args)
@@ -511,15 +533,26 @@ public:
       }
     }
 
+    std::size_t count = 0;
     for (; arg_idx != std::size(args); ++arg_idx) {
       const auto arg = args[arg_idx];
       if (!terminal && arg == "--") {
         throw error<error_code::invalid_terminal>(arg);
       }
+
       if (!terminal && is_option(arg)) {
         throw error<error_code::invalid_positional>(arg);
       }
-      positional::emplace_back(arg);
+
+      if (count == m_args.size()) {
+        throw error<error_code::superfluous_positional>(m_args.size());
+      }
+
+      m_args[count++](record, arg);
+    }
+
+    if (count != m_args.size()) {
+      throw error<error_code::missing_positional>(m_args.size());
     }
   }
 };

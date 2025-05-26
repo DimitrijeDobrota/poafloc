@@ -26,9 +26,7 @@ public:
 
 int main()
 {
-  using poafloc::direct;
-  using poafloc::boolean;
-  using poafloc::parser;
+  using namespace poafloc;  // NOLINT
 
   auto program = parser<arguments> {
       direct {

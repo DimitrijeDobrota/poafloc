@@ -7,11 +7,7 @@
 
 #include "poafloc/poafloc.hpp"
 
-using poafloc::boolean;
-using poafloc::direct;
-using poafloc::error;
-using poafloc::error_code;
-using poafloc::parser;
+using namespace poafloc;  // NOLINT
 
 // NOLINTBEGIN(*complexity*)
 TEST_CASE("invalid", "[poafloc/parser]")
@@ -395,33 +391,44 @@ TEST_CASE("positional", "[poafloc/parser]")
   {
     bool flag = false;
     int value = 0;
+    std::string one;
+    std::string two;
   } args;
 
   auto program = parser<arguments> {
       boolean {"f flag", &arguments::flag},
       direct {"v value", &arguments::value},
+      argument {"one", &arguments::one},
+      argument {"two", &arguments::two},
   };
 
   SECTION("empty")
   {
     std::vector<std::string_view> cmdline = {};
-    REQUIRE_NOTHROW(program(args, cmdline));
-    REQUIRE(program.empty());
+    REQUIRE_THROWS_AS(program(args, cmdline), error<error_code::missing_positional>);
   }
 
   SECTION("one")
   {
     std::vector<std::string_view> cmdline = {"one"};
-    REQUIRE_NOTHROW(program(args, cmdline));
-    REQUIRE(program[0] == "one");
+    REQUIRE_THROWS_AS(program(args, cmdline), error<error_code::missing_positional>);
+    REQUIRE(args.one == "one");
   }
 
   SECTION("two")
   {
     std::vector<std::string_view> cmdline = {"one", "two"};
     REQUIRE_NOTHROW(program(args, cmdline));
-    REQUIRE(program[0] == "one");
-    REQUIRE(program[1] == "two");
+    REQUIRE(args.one == "one");
+    REQUIRE(args.two == "two");
+  }
+
+  SECTION("three")
+  {
+    std::vector<std::string_view> cmdline = {"one", "two", "three"};
+    REQUIRE_THROWS_AS(program(args, cmdline), error<error_code::superfluous_positional>);
+    REQUIRE(args.one == "one");
+    REQUIRE(args.two == "two");
   }
 
   SECTION("flag short")
@@ -429,8 +436,8 @@ TEST_CASE("positional", "[poafloc/parser]")
     std::vector<std::string_view> cmdline = {"-f", "one", "two"};
     REQUIRE_NOTHROW(program(args, cmdline));
     REQUIRE(args.flag == true);
-    REQUIRE(program[0] == "one");
-    REQUIRE(program[1] == "two");
+    REQUIRE(args.one == "one");
+    REQUIRE(args.two == "two");
   }
 
   SECTION("flag long")
@@ -438,8 +445,8 @@ TEST_CASE("positional", "[poafloc/parser]")
     std::vector<std::string_view> cmdline = {"--flag", "one", "two"};
     REQUIRE_NOTHROW(program(args, cmdline));
     REQUIRE(args.flag == true);
-    REQUIRE(program[0] == "one");
-    REQUIRE(program[1] == "two");
+    REQUIRE(args.one == "one");
+    REQUIRE(args.two == "two");
   }
 
   SECTION("value short")
@@ -447,8 +454,8 @@ TEST_CASE("positional", "[poafloc/parser]")
     std::vector<std::string_view> cmdline = {"-v", "135", "one", "two"};
     REQUIRE_NOTHROW(program(args, cmdline));
     REQUIRE(args.value == 135);
-    REQUIRE(program[0] == "one");
-    REQUIRE(program[1] == "two");
+    REQUIRE(args.one == "one");
+    REQUIRE(args.two == "two");
   }
 
   SECTION("value short together")
@@ -456,8 +463,8 @@ TEST_CASE("positional", "[poafloc/parser]")
     std::vector<std::string_view> cmdline = {"-v135", "one", "two"};
     REQUIRE_NOTHROW(program(args, cmdline));
     REQUIRE(args.value == 135);
-    REQUIRE(program[0] == "one");
-    REQUIRE(program[1] == "two");
+    REQUIRE(args.one == "one");
+    REQUIRE(args.two == "two");
   }
 
   SECTION("value short together")
@@ -465,8 +472,8 @@ TEST_CASE("positional", "[poafloc/parser]")
     std::vector<std::string_view> cmdline = {"-v=135", "one", "two"};
     REQUIRE_NOTHROW(program(args, cmdline));
     REQUIRE(args.value == 135);
-    REQUIRE(program[0] == "one");
-    REQUIRE(program[1] == "two");
+    REQUIRE(args.one == "one");
+    REQUIRE(args.two == "two");
   }
 
   SECTION("value long")
@@ -474,8 +481,8 @@ TEST_CASE("positional", "[poafloc/parser]")
     std::vector<std::string_view> cmdline = {"--value", "135", "one", "two"};
     REQUIRE_NOTHROW(program(args, cmdline));
     REQUIRE(args.value == 135);
-    REQUIRE(program[0] == "one");
-    REQUIRE(program[1] == "two");
+    REQUIRE(args.one == "one");
+    REQUIRE(args.two == "two");
   }
 
   SECTION("value long equal")
@@ -483,17 +490,16 @@ TEST_CASE("positional", "[poafloc/parser]")
     std::vector<std::string_view> cmdline = {"--value=135", "one", "two"};
     REQUIRE_NOTHROW(program(args, cmdline));
     REQUIRE(args.value == 135);
-    REQUIRE(program[0] == "one");
-    REQUIRE(program[1] == "two");
+    REQUIRE(args.one == "one");
+    REQUIRE(args.two == "two");
   }
 
   SECTION("flag short terminal")
   {
     std::vector<std::string_view> cmdline = {"--", "one", "-f", "two"};
-    REQUIRE_NOTHROW(program(args, cmdline));
-    REQUIRE(program[0] == "one");
-    REQUIRE(program[1] == "-f");
-    REQUIRE(program[2] == "two");
+    REQUIRE_THROWS_AS(program(args, cmdline), error<error_code::superfluous_positional>);
+    REQUIRE(args.one == "one");
+    REQUIRE(args.two == "-f");
   }
 
   SECTION("invalid terminal")
