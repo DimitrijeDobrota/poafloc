@@ -1,7 +1,5 @@
 #pragma once
 
-#include <algorithm>
-#include <concepts>
 #include <cstring>
 #include <functional>
 #include <initializer_list>
@@ -13,9 +11,12 @@
 #include <string_view>
 #include <vector>
 
+#include <based/concepts/is/same.hpp>
 #include <based/trait/integral_constant.hpp>
+#include <based/trait/remove/cvref.hpp>
 #include <based/types/types.hpp>
 #include <based/utility/forward.hpp>
+#include <based/utility/move.hpp>
 
 namespace poafloc
 {
@@ -87,10 +88,16 @@ public:
   }
 };
 
+template<class T>
+using rec_type = typename based::remove_cvref_t<T>::rec_type;
+
+template<class T, class... Rest>
+concept SameRec = (based::SameAs<rec_type<T>, rec_type<Rest>> && ...);
+
 }  // namespace detail
 
 template<class Record, class Type>
-  requires(!std::same_as<bool, Type>)
+  requires(!based::SameAs<bool, Type>)
 class argument : public detail::option
 {
   using base = detail::option;
@@ -110,7 +117,7 @@ public:
 };
 
 template<class Record, class Type>
-  requires(!std::same_as<bool, Type>)
+  requires(!based::SameAs<bool, Type>)
 class direct : public detail::option
 {
   using base = detail::option;
@@ -155,7 +162,7 @@ public:
 };
 
 template<class Record, class Type>
-  requires(!std::same_as<bool, Type>)
+  requires(!based::SameAs<bool, Type>)
 class list : public detail::option
 {
   using base = detail::option;
@@ -206,9 +213,10 @@ class positional_base : public std::vector<detail::option>
   using base = std::vector<option>;
 
 protected:
-  template<detail::IsArgument... Args>
-  explicit positional_base(Args&&... args)
+  template<detail::IsArgument Arg, detail::IsArgument... Args>
+  explicit positional_base(Arg&& arg, Args&&... args)
       : base(std::initializer_list<option> {
+            based::forward<Arg>(arg),
             based::forward<Args>(args)...,
         })
   {
@@ -237,17 +245,18 @@ public:
 template<class Record>
 struct positional : detail::positional_base
 {
-  template<detail::IsArgument... Args>
-  explicit positional(Args&&... args)
-    requires(std::same_as<Record, typename Args::rec_type> && ...)
-      : positional_base(based::forward<Args>(args)...)
+  using rec_type = Record;
+
+  template<detail::IsArgument Arg, detail::IsArgument... Args>
+  explicit positional(Arg&& arg, Args&&... args)
+    requires detail::SameRec<Arg, Args...>
+      : positional_base(based::forward<Arg>(arg), based::forward<Args>(args)...)
   {
   }
 
   template<detail::IsArgument... Args, detail::IsList List>
   explicit positional(Args&&... args, List&& list)
-    requires(std::same_as<Record, typename List::rec_type>)
-      && (std::same_as<Record, typename Args::rec_type> && ...)
+    requires detail::SameRec<List, Args...>
       : positional_base(
             based::forward<Args>(args)..., based::forward<List>(list)
         )
@@ -256,10 +265,10 @@ struct positional : detail::positional_base
 };
 
 template<detail::IsArgument Arg, detail::IsArgument... Args>
-positional(Arg&& arg, Args&&... args) -> positional<typename Arg::rec_type>;
+positional(Arg&& arg, Args&&... args) -> positional<detail::rec_type<Arg>>;
 
 template<detail::IsArgument... Args, detail::IsList List>
-positional(Args&&... args, List&& list) -> positional<typename List::rec_type>;
+positional(Args&&... args, List&& list) -> positional<detail::rec_type<List>>;
 
 namespace detail
 {
@@ -294,9 +303,10 @@ class group_base : public std::vector<detail::option>
   std::string m_name;
 
 protected:
-  template<detail::IsOption... Opts>
-  explicit group_base(std::string_view name, Opts&&... opts)
+  template<detail::IsOption Opt, detail::IsOption... Opts>
+  explicit group_base(std::string_view name, Opt&& opt, Opts&&... opts)
       : base(std::initializer_list<option> {
+            based::forward<Opt>(opt),
             based::forward<Opts>(opts)...,
         })
       , m_name(name)
@@ -314,10 +324,14 @@ public:
 template<class Record>
 struct group : detail::group_base
 {
-  template<detail::IsOption... Opts>
-  explicit group(std::string_view name, Opts&&... opts)
-    requires(std::same_as<Record, typename Opts::rec_type> && ...)
-      : group_base(name, based::forward<Opts>(opts)...)
+  using rec_type = Record;
+
+  template<detail::IsOption Opt, detail::IsOption... Opts>
+  explicit group(std::string_view name, Opt&& opt, Opts&&... opts)
+    requires detail::SameRec<Opt, Opts...>
+      : group_base(
+            name, based::forward<Opt>(opt), based::forward<Opts>(opts)...
+        )
   {
   }
 };
@@ -401,15 +415,15 @@ class parser_base
 protected:
   template<class... Groups>
   explicit parser_base(Groups&&... groups)
-    requires(std::same_as<group_base, Groups> && ...)
+    requires(based::SameAs<group_base, Groups> && ...)
       : parser_base({}, based::forward<group_base>(groups)...)
   {
   }
 
   template<class... Groups>
-  explicit parser_base(positional_base positional, Groups&&... groups)
-    requires(std::same_as<group_base, Groups> && ...)
-      : m_pos(std::move(positional))
+  explicit parser_base(positional_base&& positional, Groups&&... groups)
+    requires(based::SameAs<group_base, Groups> && ...)
+      : m_pos(based::forward<decltype(positional)>(positional))
   {
     m_options.reserve(m_options.size() + (groups.size() + ...));
 
@@ -431,18 +445,25 @@ protected:
 template<class Record>
 struct parser : detail::parser_base
 {
-  template<class... Groups>
-  explicit parser(Groups&&... groups)
-    requires(std::same_as<group<Record>, Groups> && ...)
-      : parser_base(based::forward<detail::group_base>(groups)...)
+  template<class Group, class... Groups>
+  explicit parser(Group&& grp, Groups&&... groups)
+    requires(
+        based::SameAs<group<Record>, Group>
+        && (based::SameAs<group<Record>, Groups> && ...)
+    )
+      : parser_base(
+            based::forward<detail::group_base>(grp),
+            based::forward<detail::group_base>(groups)...
+        )
   {
   }
 
   template<class... Groups>
   explicit parser(positional<Record>&& positional, Groups&&... groups)
-    requires(std::same_as<group<Record>, Groups> && ...)
+    requires(based::SameAs<group<Record>, Groups> && ...)
       : parser_base(
-            std::move(positional), based::forward<detail::group_base>(groups)...
+            based::move(positional),
+            based::forward<detail::group_base>(groups)...
         )
   {
   }

@@ -1,3 +1,5 @@
+#include <algorithm>
+
 #include "poafloc/error.hpp"
 #include "poafloc/poafloc.hpp"
 
