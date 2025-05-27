@@ -97,7 +97,7 @@ class argument : public detail::option
   using member_type = Type Record::*;
 
 public:
-  using record_type = Record;
+  using rec_type = Record;
 
   explicit argument(std::string_view name, member_type member)
       : base(
@@ -117,7 +117,7 @@ class direct : public detail::option
   using member_type = Type Record::*;
 
 public:
-  using record_type = Record;
+  using rec_type = Record;
 
   explicit direct(std::string_view opts, member_type member)
       : base(
@@ -146,7 +146,7 @@ class boolean : public detail::option
   }
 
 public:
-  using record_type = Record;
+  using rec_type = Record;
 
   explicit boolean(std::string_view opts, member_type member)
       : base(base::type::boolean, opts, create(member))
@@ -162,7 +162,7 @@ class list : public detail::option
   using member_type = Type Record::*;
 
 public:
-  using record_type = Record;
+  using rec_type = Record;
 
   explicit list(std::string_view opts, member_type member)
       : base(
@@ -188,20 +188,48 @@ struct is_argument<argument<Record, Type>> : based::true_type
 template<class T>
 concept IsArgument = is_argument<T>::value;
 
+template<class T>
+struct is_list : based::false_type
+{
+};
+
+template<class Record, class Type>
+struct is_list<list<Record, Type>> : based::true_type
+{
+};
+
+template<class T>
+concept IsList = is_list<T>::value;
+
 class positional_base : public std::vector<detail::option>
 {
   using base = std::vector<option>;
 
 protected:
-  explicit positional_base(auto... args)
+  template<detail::IsArgument... Args>
+  explicit positional_base(Args&&... args)
       : base(std::initializer_list<option> {
-            based::forward<decltype(args)>(args)...,
+            based::forward<Args>(args)...,
+        })
+  {
+  }
+
+  template<detail::IsArgument... Args, detail::IsList List>
+  explicit positional_base(Args&&... args, List&& lst)
+      : base(std::initializer_list<option> {
+            based::forward<Args>(args)...,
+            based::forward<List>(lst),
         })
   {
   }
 
 public:
   positional_base() = default;
+
+  [[nodiscard]] bool is_list() const
+  {
+    return !empty() && back().type() == option::type::list;
+  }
 };
 
 }  // namespace detail
@@ -209,15 +237,29 @@ public:
 template<class Record>
 struct positional : detail::positional_base
 {
-  explicit positional(detail::IsArgument auto... args)
-    requires(std::same_as<Record, typename decltype(args)::record_type> && ...)
-      : positional_base(based::forward<decltype(args)>(args)...)
+  template<detail::IsArgument... Args>
+  explicit positional(Args&&... args)
+    requires(std::same_as<Record, typename Args::rec_type> && ...)
+      : positional_base(based::forward<Args>(args)...)
+  {
+  }
+
+  template<detail::IsArgument... Args, detail::IsList List>
+  explicit positional(Args&&... args, List&& list)
+    requires(std::same_as<Record, typename List::rec_type>)
+      && (std::same_as<Record, typename Args::rec_type> && ...)
+      : positional_base(
+            based::forward<Args>(args)..., based::forward<List>(list)
+        )
   {
   }
 };
 
-positional(detail::IsArgument auto arg, detail::IsArgument auto... args)
-    -> positional<typename decltype(arg)::record_type>;
+template<detail::IsArgument Arg, detail::IsArgument... Args>
+positional(Arg&& arg, Args&&... args) -> positional<typename Arg::rec_type>;
+
+template<detail::IsArgument... Args, detail::IsList List>
+positional(Args&&... args, List&& list) -> positional<typename List::rec_type>;
 
 namespace detail
 {
@@ -252,9 +294,10 @@ class group_base : public std::vector<detail::option>
   std::string m_name;
 
 protected:
-  explicit group_base(std::string_view name, detail::IsOption auto... args)
+  template<detail::IsOption... Opts>
+  explicit group_base(std::string_view name, Opts&&... opts)
       : base(std::initializer_list<option> {
-            based::forward<decltype(args)>(args)...,
+            based::forward<Opts>(opts)...,
         })
       , m_name(name)
   {
@@ -271,18 +314,17 @@ public:
 template<class Record>
 struct group : detail::group_base
 {
-  explicit group(std::string_view name, detail::IsOption auto... args)
-    requires(std::same_as<Record, typename decltype(args)::record_type> && ...)
-      : group_base(name, based::forward<decltype(args)>(args)...)
+  template<detail::IsOption... Opts>
+  explicit group(std::string_view name, Opts&&... opts)
+    requires(std::same_as<Record, typename Opts::rec_type> && ...)
+      : group_base(name, based::forward<Opts>(opts)...)
   {
   }
 };
 
-group(
-    std::string_view name,
-    detail::IsOption auto arg,
-    detail::IsOption auto... args
-) -> group<typename decltype(arg)::record_type>;
+template<detail::IsOption Opt, detail::IsOption... Opts>
+group(std::string_view name, Opt&& opt, Opts&&... opts)
+    -> group<typename Opt::rec_type>;
 
 namespace detail
 {
@@ -338,7 +380,7 @@ class parser_base
 {
   std::vector<option> m_options;
 
-  positional_base m_positional;
+  positional_base m_pos;
 
   detail::option_short m_opt_short;
   detail::option_long m_opt_long;
@@ -367,7 +409,7 @@ protected:
   template<class... Groups>
   explicit parser_base(positional_base positional, Groups&&... groups)
     requires(std::same_as<group_base, Groups> && ...)
-      : m_positional(std::move(positional))
+      : m_pos(std::move(positional))
   {
     m_options.reserve(m_options.size() + (groups.size() + ...));
 

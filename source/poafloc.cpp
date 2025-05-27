@@ -53,7 +53,7 @@ void parser_base::operator()(void* record, int argc, const char** argv)
 void parser_base::operator()(void* record, std::span<std::string_view> args)
 {
   std::size_t arg_idx = 0;
-  bool terminal = false;
+  bool is_term = false;
 
   while (arg_idx != std::size(args)) {
     const auto arg_raw = args[arg_idx];
@@ -62,12 +62,12 @@ void parser_base::operator()(void* record, std::span<std::string_view> args)
       break;
     }
 
-    if (arg_raw.size() == 1) {
+    if (std::size(arg_raw) == 1) {
       throw error<error_code::unknown_option>("-");
     }
 
     if (arg_raw == "--") {
-      terminal = true;
+      is_term = true;
       ++arg_idx;
       break;
     }
@@ -80,25 +80,29 @@ void parser_base::operator()(void* record, std::span<std::string_view> args)
   }
 
   std::size_t count = 0;
-  for (; arg_idx != std::size(args); ++arg_idx) {
-    const auto arg = args[arg_idx];
-    if (!terminal && arg == "--") {
+  while (arg_idx != std::size(args)) {
+    const auto arg = args[arg_idx++];
+    if (!is_term && arg == "--") {
       throw error<error_code::invalid_terminal>(arg);
     }
 
-    if (!terminal && ::is_option(arg)) {
+    if (!is_term && ::is_option(arg)) {
       throw error<error_code::invalid_positional>(arg);
     }
 
-    if (count == m_positional.size()) {
-      throw error<error_code::superfluous_positional>(m_positional.size());
+    if (!m_pos.is_list() && count == std::size(m_pos)) {
+      throw error<error_code::superfluous_positional>(std::size(m_pos));
     }
 
-    m_positional[count++](record, arg);
+    if (count == std::size(m_pos)) {
+      count--;
+    }
+
+    m_pos[count++](record, arg);
   }
 
-  if (count != m_positional.size()) {
-    throw error<error_code::missing_positional>(m_positional.size());
+  if (count < std::size(m_pos)) {
+    throw error<error_code::missing_positional>(std::size(m_pos));
   }
 }
 
