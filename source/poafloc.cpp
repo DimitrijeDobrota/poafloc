@@ -12,7 +12,7 @@ constexpr bool is_option(std::string_view arg)
 
 constexpr bool is_next_option(std::span<std::string_view> args)
 {
-  return !args.empty() && is_option(args.front());
+  return args.empty() || is_option(args.front());
 }
 
 }  // namespace
@@ -55,7 +55,7 @@ void parser_base::operator()(void* record, std::span<std::string_view> args)
   std::size_t arg_idx = 0;
   bool terminal = false;
 
-  for (; arg_idx != std::size(args); ++arg_idx) {
+  while (arg_idx != std::size(args)) {
     const auto arg_raw = args[arg_idx];
 
     if (!::is_option(arg_raw)) {
@@ -72,18 +72,11 @@ void parser_base::operator()(void* record, std::span<std::string_view> args)
       break;
     }
 
+    const auto next = args.subspan(arg_idx + 1);
     const auto res = arg_raw[1] != '-'
-        ? handle_short_opts(
-              record, arg_raw.substr(1), args.subspan(arg_idx + 1)
-          )
-        : handle_long_opt(record, arg_raw.substr(2), args.subspan(arg_idx + 1));
-    switch (res) {
-      case handle_res::ok:
-        break;
-      case handle_res::next:
-        arg_idx++;
-        break;
-    }
+        ? hdl_short_opts(record, arg_raw.substr(1), next)
+        : hdl_long_opt(record, arg_raw.substr(2), next);
+    arg_idx = std::size(args) - std::size(res);
   }
 
   std::size_t count = 0;
@@ -109,48 +102,68 @@ void parser_base::operator()(void* record, std::span<std::string_view> args)
   }
 }
 
-parser_base::handle_res parser_base::handle_short_opts(
-    void* record, std::string_view arg, std::span<std::string_view> next
+parser_base::next_t parser_base::hdl_short_opt(
+    void* record, char opt, std::string_view rest, next_t next
 ) const
 {
-  for (std::size_t opt_idx = 0; opt_idx < std::size(arg); opt_idx++) {
-    const auto opt = arg[opt_idx];
-    const auto option = get_option(opt);
+  const auto option = get_option(opt);
 
-    if (option.type() == option::type::boolean) {
-      option(record, "true");
-      continue;
-    }
-
-    const auto rest = arg.substr(opt_idx + 1);
-    if (rest.empty()) {
-      if (!next.empty()) {
-        option(record, next.front());
-        return handle_res::next;
-      }
-
-      throw error<error_code::missing_argument>(opt);
-    }
-
+  if (!rest.empty()) {
     if (rest.front() != '=') {
       option(record, rest);
-      return handle_res::ok;
+      return next;
     }
 
     const auto value = rest.substr(1);
     if (!value.empty()) {
       option(record, value);
-      return handle_res::ok;
+      return next;
     }
 
     throw error<error_code::missing_argument>(opt);
   }
 
-  return handle_res::ok;
+  if (is_next_option(next)) {
+    throw error<error_code::missing_argument>(opt);
+  }
+
+  if (option.type() != option::type::list) {
+    option(record, next.front());
+    return next.subspan(1);
+  }
+
+  while (!is_next_option(next)) {
+    option(record, next.front());
+    next = next.subspan(1);
+  }
+
+  return next;
 }
 
-parser_base::handle_res parser_base::handle_long_opt(
-    void* record, std::string_view arg, std::span<std::string_view> next
+parser_base::next_t parser_base::hdl_short_opts(
+    void* record, std::string_view arg, next_t next
+) const
+{
+  std::size_t opt_idx = 0;
+  while (opt_idx < std::size(arg)) {
+    const auto opt = arg[opt_idx];
+    const auto option = get_option(opt);
+
+    if (option.type() != option::type::boolean) {
+      break;
+    }
+
+    option(record, "true");
+    opt_idx++;
+  }
+
+  return opt_idx == std::size(arg)
+      ? next
+      : hdl_short_opt(record, arg[opt_idx], arg.substr(opt_idx + 1), next);
+}
+
+parser_base::next_t parser_base::hdl_long_opt(
+    void* record, std::string_view arg, next_t next
 ) const
 {
   const auto equal = arg.find('=');
@@ -166,25 +179,35 @@ parser_base::handle_res parser_base::handle_long_opt(
 
     if (!value.empty()) {
       option(record, value);
-      return handle_res::ok;
+      return next;
     }
 
     throw error<error_code::missing_argument>(opt);
   }
 
-  const auto option = get_option(arg);
+  const auto opt = arg;
+  const auto option = get_option(opt);
 
   if (option.type() == option::type::boolean) {
     option(record, "true");
-    return handle_res::ok;
+    return next;
   }
 
-  if (!next.empty()) {
+  if (is_next_option(next)) {
+    throw error<error_code::missing_argument>(opt);
+  }
+
+  if (option.type() != option::type::list) {
     option(record, next.front());
-    return handle_res::next;
+    return next.subspan(1);
   }
 
-  throw error<error_code::missing_argument>(arg);
+  while (!is_next_option(next)) {
+    option(record, next.front());
+    next = next.subspan(1);
+  }
+
+  return next;
 }
 
 [[nodiscard]] const option& parser_base::get_option(char opt) const

@@ -92,7 +92,7 @@ TEST_CASE("invalid", "[poafloc/parser]")
   }
 }
 
-TEST_CASE("flag", "[poafloc/parser]")
+TEST_CASE("boolean", "[poafloc/parser]")
 {
   struct arguments
   {
@@ -156,7 +156,7 @@ TEST_CASE("flag", "[poafloc/parser]")
   }
 }
 
-TEST_CASE("option string", "[poafloc/parser]")
+TEST_CASE("direct string", "[poafloc/parser]")
 {
   struct arguments
   {
@@ -283,7 +283,7 @@ TEST_CASE("option string", "[poafloc/parser]")
   }
 }
 
-TEST_CASE("option value", "[poafloc/parser]")
+TEST_CASE("direct value", "[poafloc/parser]")
 {
   struct arguments
   {
@@ -407,6 +407,153 @@ TEST_CASE("option value", "[poafloc/parser]")
     std::vector<std::string_view> cmdline = {"--unknown=135"};
     REQUIRE_THROWS_AS(program(args, cmdline), error<error_code::unknown_option>);
     REQUIRE(args.value == 0);
+  }
+}
+
+TEST_CASE("list", "[poafloc/parser]")
+{
+  struct arguments
+  {
+    void add(std::string_view value) { list.emplace_back(value); }
+
+    std::vector<std::string> list;
+  } args;
+
+  auto program = parser<arguments> {group {
+      "unnamed",
+      list {"l list", &arguments::add},
+  }};
+
+  SECTION("short empty")
+  {
+    std::vector<std::string_view> cmdline = {"-l"};
+    REQUIRE_THROWS_AS(program(args, cmdline), error<error_code::missing_argument>);
+  }
+
+  SECTION("short one")
+  {
+    std::vector<std::string_view> cmdline = {"-l", "one"};
+    REQUIRE_NOTHROW(program(args, cmdline));
+    REQUIRE(std::size(args.list) == 1);
+    REQUIRE(args.list[0] == "one");
+  }
+
+  SECTION("short two")
+  {
+    std::vector<std::string_view> cmdline = {"-l", "one", "two"};
+    REQUIRE_NOTHROW(program(args, cmdline));
+    REQUIRE(std::size(args.list) == 2);
+    REQUIRE(args.list[0] == "one");
+    REQUIRE(args.list[1] == "two");
+  }
+
+  SECTION("short three")
+  {
+    std::vector<std::string_view> cmdline = {"-l", "one", "two", "three"};
+    REQUIRE_NOTHROW(program(args, cmdline));
+    REQUIRE(std::size(args.list) == 3);
+    REQUIRE(args.list[0] == "one");
+    REQUIRE(args.list[1] == "two");
+    REQUIRE(args.list[2] == "three");
+  }
+
+  SECTION("short terminal")
+  {
+    std::vector<std::string_view> cmdline = {"-l", "--"};
+    REQUIRE_THROWS_AS(program(args, cmdline), error<error_code::missing_argument>);
+  }
+
+  SECTION("short terminal one")
+  {
+    std::vector<std::string_view> cmdline = {"-l", "one", "--"};
+    REQUIRE_NOTHROW(program(args, cmdline));
+    REQUIRE(std::size(args.list) == 1);
+    REQUIRE(args.list[0] == "one");
+  }
+
+  SECTION("short terminal two")
+  {
+    std::vector<std::string_view> cmdline = {"-l", "one", "two", "--"};
+    REQUIRE_NOTHROW(program(args, cmdline));
+    REQUIRE(std::size(args.list) == 2);
+    REQUIRE(args.list[0] == "one");
+    REQUIRE(args.list[1] == "two");
+  }
+
+  SECTION("short terminal three")
+  {
+    std::vector<std::string_view> cmdline = {"-l", "one", "two", "three", "--"};
+    REQUIRE_NOTHROW(program(args, cmdline));
+    REQUIRE(std::size(args.list) == 3);
+    REQUIRE(args.list[0] == "one");
+    REQUIRE(args.list[1] == "two");
+    REQUIRE(args.list[2] == "three");
+  }
+
+  SECTION("long empty")
+  {
+    std::vector<std::string_view> cmdline = {"--list"};
+    REQUIRE_THROWS_AS(program(args, cmdline), error<error_code::missing_argument>);
+  }
+
+  SECTION("long one")
+  {
+    std::vector<std::string_view> cmdline = {"--list", "one"};
+    REQUIRE_NOTHROW(program(args, cmdline));
+    REQUIRE(std::size(args.list) == 1);
+    REQUIRE(args.list[0] == "one");
+  }
+
+  SECTION("long two")
+  {
+    std::vector<std::string_view> cmdline = {"--list", "one", "two"};
+    REQUIRE_NOTHROW(program(args, cmdline));
+    REQUIRE(std::size(args.list) == 2);
+    REQUIRE(args.list[0] == "one");
+    REQUIRE(args.list[1] == "two");
+  }
+
+  SECTION("long three")
+  {
+    std::vector<std::string_view> cmdline = {"--list", "one", "two", "three"};
+    REQUIRE_NOTHROW(program(args, cmdline));
+    REQUIRE(std::size(args.list) == 3);
+    REQUIRE(args.list[0] == "one");
+    REQUIRE(args.list[1] == "two");
+    REQUIRE(args.list[2] == "three");
+  }
+
+  SECTION("long terminal")
+  {
+    std::vector<std::string_view> cmdline = {"--list", "--"};
+    REQUIRE_THROWS_AS(program(args, cmdline), error<error_code::missing_argument>);
+  }
+
+  SECTION("long terminal one")
+  {
+    std::vector<std::string_view> cmdline = {"--list", "one", "--"};
+    REQUIRE_NOTHROW(program(args, cmdline));
+    REQUIRE(std::size(args.list) == 1);
+    REQUIRE(args.list[0] == "one");
+  }
+
+  SECTION("long terminal two")
+  {
+    std::vector<std::string_view> cmdline = {"--list", "one", "two", "--"};
+    REQUIRE_NOTHROW(program(args, cmdline));
+    REQUIRE(std::size(args.list) == 2);
+    REQUIRE(args.list[0] == "one");
+    REQUIRE(args.list[1] == "two");
+  }
+
+  SECTION("long terminal three")
+  {
+    std::vector<std::string_view> cmdline = {"--list", "one", "two", "three", "--"};
+    REQUIRE_NOTHROW(program(args, cmdline));
+    REQUIRE(std::size(args.list) == 3);
+    REQUIRE(args.list[0] == "one");
+    REQUIRE(args.list[1] == "two");
+    REQUIRE(args.list[2] == "three");
   }
 }
 

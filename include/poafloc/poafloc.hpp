@@ -154,6 +154,24 @@ public:
   }
 };
 
+template<class Record, class Type>
+  requires(!std::same_as<bool, Type>)
+class list : public detail::option
+{
+  using base = detail::option;
+  using member_type = Type Record::*;
+
+public:
+  using record_type = Record;
+
+  explicit list(std::string_view opts, member_type member)
+      : base(
+            base::type::list, opts, base::template create<Record, Type>(member)
+        )
+  {
+  }
+};
+
 namespace detail
 {
 
@@ -216,6 +234,11 @@ struct is_option<direct<Record, Type>> : based::true_type
 
 template<class Record>
 struct is_option<boolean<Record>> : based::true_type
+{
+};
+
+template<class Record, class Type>
+struct is_option<list<Record, Type>> : based::true_type
 {
 };
 
@@ -325,18 +348,12 @@ class parser_base
   [[nodiscard]] const option& get_option(char opt) const;
   [[nodiscard]] const option& get_option(std::string_view opt) const;
 
-  enum class handle_res : std::uint8_t
-  {
-    next,
-    ok,
-  };
+  using next_t = std::span<std::string_view>;
 
-  handle_res handle_long_opt(
-      void* record, std::string_view arg, std::span<std::string_view> next
-  ) const;
-
-  handle_res handle_short_opts(
-      void* record, std::string_view arg, std::span<std::string_view> next
+  next_t hdl_long_opt(void* record, std::string_view arg, next_t next) const;
+  next_t hdl_short_opts(void* record, std::string_view arg, next_t next) const;
+  next_t hdl_short_opt(
+      void* record, char opt, std::string_view rest, next_t next
   ) const;
 
 protected:
