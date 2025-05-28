@@ -21,6 +21,7 @@ add_library(
     poafloc_poafloc
     source/poafloc.cpp
     source/option.cpp
+    source/help.cpp
 )
 add_library(poafloc::poafloc ALIAS poafloc_poafloc)
 target_link_libraries(poafloc_poafloc PUBLIC based::based)

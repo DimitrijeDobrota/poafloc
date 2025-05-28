@@ -29,31 +29,45 @@ int main()
   using namespace poafloc;  // NOLINT
 
   auto program = parser<arguments> {
+      positional {
+          argument {
+              "value",
+              &arguments::val,
+          },
+          argument_list {
+              "rest",
+              &arguments::val,
+          },
+      },
       group {
           "standard",
           direct {
-              "v value",
-              &arguments::val,
-          },
-          direct {
               "m multiply",
               &arguments::mul,
+              "NUM Multiplication constant",
           },
           direct {
               "n name",
               &arguments::name,
+              "NAME Name of the variable",
           },
+      },
+      group {
+          "test",
           direct {
               "p priv",
               &arguments::set_priv,
+              "PRIV Private code",
           },
           boolean {
               "f flag1",
               &arguments::flag1,
+              "Some flag1",
           },
           boolean {
               "F flag2",
               &arguments::flag2,
+              "Some flag2",
           },
       },
   };
@@ -71,9 +85,12 @@ int main()
 
   arguments args;
 
+  program.help_long();
+  /*
   std::cout << args << '\n';
   program(args, cmd_args);
   std::cout << args << '\n';
+  */
 
   return 0;
 }

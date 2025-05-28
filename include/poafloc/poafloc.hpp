@@ -18,6 +18,8 @@
 #include <based/utility/forward.hpp>
 #include <based/utility/move.hpp>
 
+#include "poafloc/error.hpp"
+
 namespace poafloc
 {
 
@@ -40,16 +42,17 @@ private:
   using func_t = std::function<void(void*, std::string_view)>;
 
   type m_type;
-  std::string m_opts;
   func_t m_func;
+  std::vector<char> m_opts_short;
+  std::vector<std::string> m_opts_long;
+
+  std::string m_name;
+  std::string m_message;
 
 protected:
-  explicit option(type type, std::string_view opts, func_t func)
-      : m_type(type)
-      , m_opts(opts)
-      , m_func(std::move(func))
-  {
-  }
+  explicit option(
+      type type, std::string_view opts, func_t func, std::string_view help = ""
+  );
 
   template<class Record, class Type, class Member = Type Record::*>
   static auto create(Member member)
@@ -79,8 +82,11 @@ protected:
   }
 
 public:
-  [[nodiscard]] const std::string& opts() const { return m_opts; }
-  [[nodiscard]] type type() const { return m_type; }
+  [[nodiscard]] const auto& opts_long() const { return m_opts_long; }
+  [[nodiscard]] const auto& opts_short() const { return m_opts_short; }
+  [[nodiscard]] const std::string& name() const { return m_name; }
+  [[nodiscard]] const std::string& message() const { return m_message; }
+  [[nodiscard]] type get_type() const { return m_type; }
 
   void operator()(void* record, std::string_view value) const
   {
@@ -109,8 +115,30 @@ public:
   explicit argument(std::string_view name, member_type member)
       : base(
             base::type::argument,
-            name,
-            base::template create<Record, Type>(member)
+            "",
+            base::template create<Record, Type>(member),
+            name
+        )
+  {
+  }
+};
+
+template<class Record, class Type>
+  requires(!based::SameAs<bool, Type>)
+class argument_list : public detail::option
+{
+  using base = detail::option;
+  using member_type = Type Record::*;
+
+public:
+  using rec_type = Record;
+
+  explicit argument_list(std::string_view name, member_type member)
+      : base(
+            base::type::list,
+            "",
+            base::template create<Record, Type>(member),
+            name
         )
   {
   }
@@ -126,11 +154,14 @@ class direct : public detail::option
 public:
   using rec_type = Record;
 
-  explicit direct(std::string_view opts, member_type member)
+  explicit direct(
+      std::string_view opts, member_type member, std::string_view help = ""
+  )
       : base(
             base::type::direct,
             opts,
-            base::template create<Record, Type>(member)
+            base::template create<Record, Type>(member),
+            help
         )
   {
   }
@@ -155,8 +186,10 @@ class boolean : public detail::option
 public:
   using rec_type = Record;
 
-  explicit boolean(std::string_view opts, member_type member)
-      : base(base::type::boolean, opts, create(member))
+  explicit boolean(
+      std::string_view opts, member_type member, std::string_view help = ""
+  )
+      : base(base::type::boolean, opts, create(member), help)
   {
   }
 };
@@ -171,9 +204,14 @@ class list : public detail::option
 public:
   using rec_type = Record;
 
-  explicit list(std::string_view opts, member_type member)
+  explicit list(
+      std::string_view opts, member_type member, std::string_view help = ""
+  )
       : base(
-            base::type::list, opts, base::template create<Record, Type>(member)
+            base::type::list,
+            opts,
+            base::template create<Record, Type>(member),
+            help
         )
   {
   }
@@ -183,52 +221,40 @@ namespace detail
 {
 
 template<class T>
-struct is_argument : based::false_type
+struct is_positional : based::false_type
 {
 };
 
 template<class Record, class Type>
-struct is_argument<argument<Record, Type>> : based::true_type
-{
-};
-
-template<class T>
-concept IsArgument = is_argument<T>::value;
-
-template<class T>
-struct is_list : based::false_type
+struct is_positional<argument_list<Record, Type>> : based::true_type
 {
 };
 
 template<class Record, class Type>
-struct is_list<list<Record, Type>> : based::true_type
+struct is_positional<argument<Record, Type>> : based::true_type
 {
 };
 
 template<class T>
-concept IsList = is_list<T>::value;
+concept IsPositional = is_positional<T>::value;
 
 class positional_base : public std::vector<detail::option>
 {
   using base = std::vector<option>;
 
 protected:
-  template<detail::IsArgument Arg, detail::IsArgument... Args>
+  template<detail::IsPositional Arg, detail::IsPositional... Args>
   explicit positional_base(Arg&& arg, Args&&... args)
       : base(std::initializer_list<option> {
             based::forward<Arg>(arg),
             based::forward<Args>(args)...,
         })
   {
-  }
-
-  template<detail::IsArgument... Args, detail::IsList List>
-  explicit positional_base(Args&&... args, List&& lst)
-      : base(std::initializer_list<option> {
-            based::forward<Args>(args)...,
-            based::forward<List>(lst),
-        })
-  {
+    for (std::size_t i = 0; i < base::size() - 1; i++) {
+      if (base::operator[](i).get_type() == option::type::list) {
+        throw runtime_error("invalid positional constructor");
+      }
+    }
   }
 
 public:
@@ -236,7 +262,7 @@ public:
 
   [[nodiscard]] bool is_list() const
   {
-    return !empty() && back().type() == option::type::list;
+    return !empty() && back().get_type() == option::type::list;
   }
 };
 
@@ -247,28 +273,16 @@ struct positional : detail::positional_base
 {
   using rec_type = Record;
 
-  template<detail::IsArgument Arg, detail::IsArgument... Args>
+  template<detail::IsPositional Arg, detail::IsPositional... Args>
   explicit positional(Arg&& arg, Args&&... args)
     requires detail::SameRec<Arg, Args...>
       : positional_base(based::forward<Arg>(arg), based::forward<Args>(args)...)
   {
   }
-
-  template<detail::IsArgument... Args, detail::IsList List>
-  explicit positional(Args&&... args, List&& list)
-    requires detail::SameRec<List, Args...>
-      : positional_base(
-            based::forward<Args>(args)..., based::forward<List>(list)
-        )
-  {
-  }
 };
 
-template<detail::IsArgument Arg, detail::IsArgument... Args>
+template<detail::IsPositional Arg, detail::IsPositional... Args>
 positional(Arg&& arg, Args&&... args) -> positional<detail::rec_type<Arg>>;
-
-template<detail::IsArgument... Args, detail::IsList List>
-positional(Args&&... args, List&& list) -> positional<detail::rec_type<List>>;
 
 namespace detail
 {
@@ -394,12 +408,14 @@ class parser_base
 {
   std::vector<option> m_options;
 
+  using group_t = std::pair<std::size_t, std::string>;
+  std::vector<group_t> m_groups;
+
   positional_base m_pos;
+  option_short m_opt_short;
+  option_long m_opt_long;
 
-  detail::option_short m_opt_short;
-  detail::option_long m_opt_long;
-
-  void process(const option& option, std::string_view opts);
+  void process(const option& option);
 
   [[nodiscard]] const option& get_option(char opt) const;
   [[nodiscard]] const option& get_option(std::string_view opt) const;
@@ -426,18 +442,23 @@ protected:
       : m_pos(based::forward<decltype(positional)>(positional))
   {
     m_options.reserve(m_options.size() + (groups.size() + ...));
+    m_groups.reserve(sizeof...(groups));
 
     const auto process = [&](const auto& group)
     {
       for (const auto& option : group) {
-        this->process(option, option.opts());
+        this->process(option);
       }
+      m_groups.emplace_back(m_options.size(), group.name());
     };
     (process(groups), ...);
   }
 
   void operator()(void* record, int argc, const char** argv);
   void operator()(void* record, std::span<std::string_view> args);
+
+  void help_long() const;
+  void help_short() const;
 };
 
 }  // namespace detail
@@ -467,6 +488,9 @@ struct parser : detail::parser_base
         )
   {
   }
+
+  using parser_base::help_long;
+  using parser_base::help_short;
 
   void operator()(Record& record, int argc, const char** argv)
   {

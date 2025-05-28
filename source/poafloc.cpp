@@ -1,3 +1,5 @@
+#include <algorithm>
+
 #include "poafloc/poafloc.hpp"
 
 #include "poafloc/error.hpp"
@@ -20,22 +22,46 @@ constexpr bool is_next_option(std::span<std::string_view> args)
 namespace poafloc::detail
 {
 
-void parser_base::process(const option& option, std::string_view opts)
+option::option(
+    option::type type, std::string_view opts, func_t func, std::string_view help
+)
+    : m_type(type)
+    , m_func(std::move(func))
 {
   auto istr = std::istringstream(std::string(opts));
   std::string str;
 
   while (std::getline(istr, str, ' ')) {
     if (std::size(str) == 1) {
-      const auto& opt = str[0];
-      if (!m_opt_short.set(opt, std::size(m_options))) {
-        throw error<error_code::duplicate_option>(opt);
-      }
+      m_opts_short.emplace_back(str[0]);
     } else {
-      const auto& opt = str;
-      if (!m_opt_long.set(opt, std::size(m_options))) {
-        throw error<error_code::duplicate_option>(opt);
-      }
+      m_opts_long.emplace_back(str);
+    }
+  }
+
+  std::ranges::sort(m_opts_short);
+  std::ranges::sort(m_opts_long);
+
+  if (type != option::type::boolean) {
+    const auto pos = help.find(' ');
+    m_name = help.substr(0, pos);
+    m_message = help.substr(pos + 1);
+  } else {
+    m_message = help;
+  }
+}
+
+void parser_base::process(const option& option)
+{
+  for (const auto opt_short : option.opts_short()) {
+    if (!m_opt_short.set(opt_short, std::size(m_options))) {
+      throw error<error_code::duplicate_option>(opt_short);
+    }
+  }
+
+  for (const auto& opt_long : option.opts_long()) {
+    if (!m_opt_long.set(opt_long, std::size(m_options))) {
+      throw error<error_code::duplicate_option>(opt_long);
     }
   }
 
@@ -131,7 +157,7 @@ parser_base::next_t parser_base::hdl_short_opt(
     throw error<error_code::missing_argument>(opt);
   }
 
-  if (option.type() != option::type::list) {
+  if (option.get_type() != option::type::list) {
     option(record, next.front());
     return next.subspan(1);
   }
@@ -153,7 +179,7 @@ parser_base::next_t parser_base::hdl_short_opts(
     const auto opt = arg[opt_idx];
     const auto option = get_option(opt);
 
-    if (option.type() != option::type::boolean) {
+    if (option.get_type() != option::type::boolean) {
       break;
     }
 
@@ -177,7 +203,7 @@ parser_base::next_t parser_base::hdl_long_opt(
 
     const auto option = get_option(opt);
 
-    if (option.type() == option::type::boolean) {
+    if (option.get_type() == option::type::boolean) {
       throw error<error_code::superfluous_argument>(opt);
     }
 
@@ -192,7 +218,7 @@ parser_base::next_t parser_base::hdl_long_opt(
   const auto opt = arg;
   const auto option = get_option(opt);
 
-  if (option.type() == option::type::boolean) {
+  if (option.get_type() == option::type::boolean) {
     option(record, "true");
     return next;
   }
@@ -201,7 +227,7 @@ parser_base::next_t parser_base::hdl_long_opt(
     throw error<error_code::missing_argument>(opt);
   }
 
-  if (option.type() != option::type::list) {
+  if (option.get_type() != option::type::list) {
     option(record, next.front());
     return next.subspan(1);
   }
