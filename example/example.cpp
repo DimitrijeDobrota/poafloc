@@ -46,10 +46,10 @@ int main()
               &arguments::mul,
               "NUM Multiplication constant",
           },
-          direct {
-              "n name",
+          list {
+              "n names",
               &arguments::name,
-              "NAME Name of the variable",
+              "NAME Names of the variables",
           },
       },
       group {
@@ -60,7 +60,7 @@ int main()
               "PRIV Private code",
           },
           boolean {
-              "f flag1",
+              "flag1",
               &arguments::flag1,
               "Some flag1",
           },
@@ -73,7 +73,6 @@ int main()
   };
 
   const std::vector<std::string_view> cmd_args {
-      "--value=150",
       "-m1.34",
       "--name",
       "Hello there!",
@@ -81,11 +80,15 @@ int main()
       "General Kenobi!",
       "--flag1",
       "-F",
+      "150",
+      "40",
+      "30",
   };
 
   arguments args;
 
   program.help_long();
+  program.help_short();
 
   std::cout << args << '\n';
   program(args, cmd_args);

@@ -12,9 +12,9 @@ namespace poafloc
 {
 
 #define ENUM_ERROR                                                             \
-  invalid_option, invalid_positional, invalid_terminal, missing_argument,      \
-      missing_positional, superfluous_argument, superfluous_positional,        \
-      unknown_option, duplicate_option
+  invalid_option, invalid_positional, invalid_terminal, missing_option,        \
+      missing_argument, missing_positional, superfluous_argument,              \
+      superfluous_positional, unknown_option, duplicate_option
 BASED_DECLARE_ENUM(error_code, based::bu8, 0, ENUM_ERROR)
 BASED_DEFINE_ENUM(error_code, based::bu8, 0, ENUM_ERROR)
 #undef ENUM_ERROR
@@ -28,6 +28,8 @@ static constexpr const char* error_get_message(error_code::enum_type error)
       return "Invalid positional argument: {}";
     case error_code::invalid_terminal():
       return "Invalid positional argument";
+    case error_code::missing_option():
+      return "Missing at least on of long and short options";
     case error_code::missing_argument():
       return "Missing argument for option: {}";
     case error_code::missing_positional():

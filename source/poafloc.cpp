@@ -1,5 +1,3 @@
-#include <algorithm>
-
 #include "poafloc/poafloc.hpp"
 
 #include "poafloc/error.hpp"
@@ -22,6 +20,13 @@ constexpr bool is_next_option(std::span<const std::string_view> args)
 namespace poafloc::detail
 {
 
+option::option(option::type type, func_t func, std::string_view help)
+    : m_type(type)
+    , m_func(std::move(func))
+    , m_name(help)
+{
+}
+
 option::option(
     option::type type, std::string_view opts, func_t func, std::string_view help
 )
@@ -33,14 +38,15 @@ option::option(
 
   while (std::getline(istr, str, ' ')) {
     if (std::size(str) == 1) {
-      m_opts_short.emplace_back(str[0]);
+      m_opt_short = str[0];
     } else {
-      m_opts_long.emplace_back(str);
+      m_opt_long = str;
     }
   }
 
-  std::ranges::sort(m_opts_short);
-  std::ranges::sort(m_opts_long);
+  if (!has_opt_short() && !has_opt_long()) {
+    throw error<error_code::missing_option>();
+  }
 
   if (type != option::type::boolean) {
     const auto pos = help.find(' ');
@@ -53,13 +59,15 @@ option::option(
 
 void parser_base::process(const option& option)
 {
-  for (const auto opt_short : option.opts_short()) {
+  if (option.has_opt_short()) {
+    const auto& opt_short = option.opt_short();
     if (!m_opt_short.set(opt_short, std::size(m_options))) {
       throw error<error_code::duplicate_option>(opt_short);
     }
   }
 
-  for (const auto& opt_long : option.opts_long()) {
+  if (option.has_opt_long()) {
+    const auto& opt_long = option.opt_long();
     if (!m_opt_long.set(opt_long, std::size(m_options))) {
       throw error<error_code::duplicate_option>(opt_long);
     }
@@ -107,7 +115,7 @@ void parser_base::operator()(
     arg_idx = std::size(args) - std::size(res);
   }
 
-  auto count = 0_u64;
+  size_type count = 0_u;
   while (arg_idx != std::size(args)) {
     const auto arg = args[arg_idx++];
     if (!is_term && arg == "--") {
@@ -200,11 +208,10 @@ parser_base::next_t parser_base::hdl_long_opt(
 {
   const auto equal = arg.find('=');
   if (equal != std::string::npos) {
-    auto opt = arg.substr(0, equal - 1);
+    auto opt = arg.substr(0, equal);
     const auto value = arg.substr(equal + 1);
 
     const auto option = get_option(opt);
-
     if (option.get_type() == option::type::boolean) {
       throw error<error_code::superfluous_argument>(opt);
     }

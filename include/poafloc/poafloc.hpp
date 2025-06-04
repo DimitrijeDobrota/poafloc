@@ -50,13 +50,17 @@ private:
   type m_type;
   func_t m_func;
 
-  based::vector<based::character, size_type> m_opts_short;
-  based::vector<std::string, size_type> m_opts_long;
+  based::character m_opt_short;
+  std::string m_opt_long;
 
   std::string m_name;
   std::string m_message;
 
 protected:
+  // used for args
+  explicit option(type type, func_t func, std::string_view help = "");
+
+  // used for options
   explicit option(
       type type, std::string_view opts, func_t func, std::string_view help = ""
   );
@@ -89,8 +93,12 @@ protected:
   }
 
 public:
-  [[nodiscard]] const auto& opts_long() const { return m_opts_long; }
-  [[nodiscard]] const auto& opts_short() const { return m_opts_short; }
+  [[nodiscard]] bool has_opt_long() const { return !m_opt_long.empty(); }
+  [[nodiscard]] bool has_opt_short() const { return m_opt_short != '\0'; }
+
+  [[nodiscard]] const std::string& opt_long() const { return m_opt_long; }
+  [[nodiscard]] based::character opt_short() const { return m_opt_short; }
+
   [[nodiscard]] const std::string& name() const { return m_name; }
   [[nodiscard]] const std::string& message() const { return m_message; }
   [[nodiscard]] type get_type() const { return m_type; }
@@ -122,7 +130,6 @@ public:
   explicit argument(std::string_view name, member_type member)
       : base(
             base::type::argument,
-            "",
             base::template create<Record, Type>(member),
             name
         )
@@ -142,10 +149,7 @@ public:
 
   explicit argument_list(std::string_view name, member_type member)
       : base(
-            base::type::list,
-            "",
-            base::template create<Record, Type>(member),
-            name
+            base::type::list, base::template create<Record, Type>(member), name
         )
   {
   }
@@ -485,6 +489,7 @@ protected:
   void operator()(void* record, int argc, const char** argv);
   void operator()(void* record, std::span<const std::string_view> args);
 
+  void help_usage() const;
   void help_long() const;
   void help_short() const;
 };

@@ -125,6 +125,7 @@ trie_t::opt_type trie_t::get(const trie_t& trie, std::string_view key)
 
   return {};
 }
+
 }  // namespace poafloc::detail
 
 // option_long
