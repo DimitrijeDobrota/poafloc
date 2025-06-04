@@ -18,7 +18,7 @@ void parser_base::help_long() const
   }
   std::cerr << '\n';
 
-  std::size_t idx = 0;
+  auto idx = size_type(0_u);
   for (const auto& [end_idx, name] : m_groups) {
     std::cerr << std::format("\n{}:\n", name);
     while (idx < end_idx) {
@@ -27,7 +27,7 @@ void parser_base::help_long() const
 
       line += " ";
       for (const auto opt_short : option.opts_short()) {
-        line += std::format(" -{},", opt_short);
+        line += std::format(" -{},", opt_short.chr());
       }
       for (const auto& opt_long : option.opts_long()) {
         switch (option.get_type()) {

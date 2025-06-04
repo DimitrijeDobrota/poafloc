@@ -4,6 +4,7 @@
 #include <stdexcept>
 
 #include <based/enum/enum.hpp>
+#include <based/format.hpp>
 #include <based/types/types.hpp>
 #include <based/utility/forward.hpp>
 

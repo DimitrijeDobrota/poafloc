@@ -9,11 +9,13 @@
 #include <sstream>
 #include <string>
 #include <string_view>
-#include <vector>
 
 #include <based/concepts/is/same.hpp>
+#include <based/container/array.hpp>
+#include <based/container/vector.hpp>
 #include <based/trait/integral_constant.hpp>
 #include <based/trait/remove/cvref.hpp>
+#include <based/types/literals.hpp>
 #include <based/types/types.hpp>
 #include <based/utility/forward.hpp>
 #include <based/utility/move.hpp>
@@ -22,6 +24,8 @@
 
 namespace poafloc
 {
+
+using namespace based::literals;  // NOLINT(*namespace*)
 
 namespace detail
 {
@@ -41,10 +45,13 @@ public:
 private:
   using func_t = std::function<void(void*, std::string_view)>;
 
+  using size_type = based::u64;
+
   type m_type;
   func_t m_func;
-  std::vector<char> m_opts_short;
-  std::vector<std::string> m_opts_long;
+
+  based::vector<based::character, size_type> m_opts_short;
+  based::vector<std::string, size_type> m_opts_long;
 
   std::string m_name;
   std::string m_message;
@@ -238,9 +245,9 @@ struct is_positional<argument<Record, Type>> : based::true_type
 template<class T>
 concept IsPositional = is_positional<T>::value;
 
-class positional_base : public std::vector<detail::option>
+class positional_base : public based::vector<detail::option, based::u64>
 {
-  using base = std::vector<option>;
+  using base = based::vector<option, based::u64>;
 
 protected:
   template<detail::IsPositional Arg, detail::IsPositional... Args>
@@ -250,7 +257,7 @@ protected:
             based::forward<Args>(args)...,
         })
   {
-    for (std::size_t i = 0; i < base::size() - 1; i++) {
+    for (size_type i = 0_u; i + 1_u8 < base::size(); i++) {
       if (base::operator[](i).get_type() == option::type::list) {
         throw runtime_error("invalid positional constructor");
       }
@@ -310,9 +317,9 @@ struct is_option<list<Record, Type>> : based::true_type
 template<class T>
 concept IsOption = is_option<T>::value;
 
-class group_base : public std::vector<detail::option>
+class group_base : public based::vector<detail::option, based::u64>
 {
-  using base = std::vector<option>;
+  using base = based::vector<option, based::u64>;
 
   std::string m_name;
 
@@ -359,57 +366,78 @@ namespace detail
 
 class option_short
 {
-  static constexpr const auto sentinel = std::size_t {0xFFFFFFFFFFFFFFFF};
+  using size_type = based::u8;
+  using value_type = based::u64;
+  using opt_type = std::optional<value_type>;
 
-  static constexpr auto size = static_cast<std::size_t>(2 * 26);
-  std::array<std::size_t, size> m_opts = {};
+  static constexpr auto size = size_type(2_u * 26_u);
+  static constexpr const auto sentinel = based::limits<value_type>::max;
 
-  [[nodiscard]] bool has(char chr) const;
+  using array_type = based::array<value_type, size_type, size>;
+  array_type m_opts = {};
+
+  [[nodiscard]] bool has(based::character chr) const;
 
 public:
   option_short() { m_opts.fill(sentinel); }
 
-  static constexpr bool is_valid(char chr);
-  [[nodiscard]] bool set(char chr, std::size_t idx);
-  [[nodiscard]] std::optional<std::size_t> get(char chr) const;
+  static constexpr bool is_valid(based::character chr);
+  [[nodiscard]] bool set(based::character chr, value_type value);
+  [[nodiscard]] opt_type get(based::character chr) const;
 };
 
 class trie_t
 {
-  static constexpr const auto sentinel = std::size_t {0xFFFFFFFFFFFFFFFF};
+  using size_type = based::u8;
+  using value_type = based::u64;
+  using opt_type = std::optional<value_type>;
 
-  static constexpr auto size = static_cast<std::size_t>(26ULL + 10ULL);
-  std::array<std::unique_ptr<trie_t>, size> m_children = {};
+  static constexpr auto size = size_type(26_u + 10_u);
+  static constexpr const auto sentinel = based::limits<value_type>::max;
 
-  std::size_t m_value = sentinel;
-  std::size_t m_count = 0;
+  using ptr_type = std::unique_ptr<trie_t>;
+  using array_type = based::array<ptr_type, size_type, size>;
+  array_type m_children = {};
+
+  value_type m_value = sentinel;
+  based::u8 m_count = 0_u8;
+
   bool m_terminal = false;
+  trie_t* m_parent = nullptr;
 
-  static constexpr auto map(char chr);
+  static constexpr auto map(based::character chr);
 
 public:
-  static bool set(trie_t& trie, std::string_view key, std::size_t value);
-  static std::optional<std::size_t> get(
-      const trie_t& trie, std::string_view key
-  );
+  explicit trie_t(trie_t* parent = nullptr)
+      : m_parent(parent)
+  {
+  }
+
+  static bool set(trie_t& trie, std::string_view key, value_type value);
+  static opt_type get(const trie_t& trie, std::string_view key);
 };
 
 class option_long
 {
+  using value_type = based::u64;
+  using opt_type = std::optional<value_type>;
+
   trie_t m_trie;
 
 public:
   static constexpr bool is_valid(std::string_view opt);
-  [[nodiscard]] bool set(std::string_view opt, std::size_t idx);
-  [[nodiscard]] std::optional<std::size_t> get(std::string_view opt) const;
+  [[nodiscard]] bool set(std::string_view opt, value_type idx);
+  [[nodiscard]] opt_type get(std::string_view opt) const;
 };
 
 class parser_base
 {
-  std::vector<option> m_options;
+  using size_type = based::u64;
 
-  using group_t = std::pair<std::size_t, std::string>;
-  std::vector<group_t> m_groups;
+  based::vector<option, size_type> m_options;
+
+  using group_type = std::pair<size_type, std::string>;
+  based::vector<group_type, size_type> m_groups;
 
   positional_base m_pos;
   option_short m_opt_short;
@@ -417,15 +445,15 @@ class parser_base
 
   void process(const option& option);
 
-  [[nodiscard]] const option& get_option(char opt) const;
+  [[nodiscard]] const option& get_option(based::character opt) const;
   [[nodiscard]] const option& get_option(std::string_view opt) const;
 
-  using next_t = std::span<std::string_view>;
+  using next_t = std::span<const std::string_view>;
 
   next_t hdl_long_opt(void* record, std::string_view arg, next_t next) const;
   next_t hdl_short_opts(void* record, std::string_view arg, next_t next) const;
   next_t hdl_short_opt(
-      void* record, char opt, std::string_view rest, next_t next
+      void* record, based::character opt, std::string_view rest, next_t next
   ) const;
 
 protected:
@@ -442,7 +470,7 @@ protected:
       : m_pos(based::forward<decltype(positional)>(positional))
   {
     m_options.reserve(m_options.size() + (groups.size() + ...));
-    m_groups.reserve(sizeof...(groups));
+    m_groups.reserve(size_type::underlying_cast(sizeof...(groups)));
 
     const auto process = [&](const auto& group)
     {
@@ -455,7 +483,7 @@ protected:
   }
 
   void operator()(void* record, int argc, const char** argv);
-  void operator()(void* record, std::span<std::string_view> args);
+  void operator()(void* record, std::span<const std::string_view> args);
 
   void help_long() const;
   void help_short() const;
@@ -497,7 +525,7 @@ struct parser : detail::parser_base
     parser_base::operator()(&record, argc, argv);
   }
 
-  void operator()(Record& record, std::span<std::string_view> args)
+  void operator()(Record& record, std::span<const std::string_view> args)
   {
     parser_base::operator()(&record, args);
   }

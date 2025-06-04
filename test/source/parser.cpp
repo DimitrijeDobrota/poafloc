@@ -548,7 +548,9 @@ TEST_CASE("list", "[poafloc/parser]")
 
   SECTION("long terminal three")
   {
-    std::vector<std::string_view> cmdline = {"--list", "one", "two", "three", "--"};
+    std::vector<std::string_view> cmdline = {
+        "--list", "one", "two", "three", "--"
+    };
     REQUIRE_NOTHROW(program(args, cmdline));
     REQUIRE(std::size(args.list) == 3);
     REQUIRE(args.list[0] == "one");

@@ -12,7 +12,7 @@ constexpr bool is_option(std::string_view arg)
   return arg.starts_with("-");
 }
 
-constexpr bool is_next_option(std::span<std::string_view> args)
+constexpr bool is_next_option(std::span<const std::string_view> args)
 {
   return args.empty() || is_option(args.front());
 }
@@ -76,7 +76,9 @@ void parser_base::operator()(void* record, int argc, const char** argv)
   operator()(record, args);
 }
 
-void parser_base::operator()(void* record, std::span<std::string_view> args)
+void parser_base::operator()(
+    void* record, std::span<const std::string_view> args
+)
 {
   std::size_t arg_idx = 0;
   bool is_term = false;
@@ -105,7 +107,7 @@ void parser_base::operator()(void* record, std::span<std::string_view> args)
     arg_idx = std::size(args) - std::size(res);
   }
 
-  std::size_t count = 0;
+  auto count = 0_u64;
   while (arg_idx != std::size(args)) {
     const auto arg = args[arg_idx++];
     if (!is_term && arg == "--") {
@@ -133,7 +135,7 @@ void parser_base::operator()(void* record, std::span<std::string_view> args)
 }
 
 parser_base::next_t parser_base::hdl_short_opt(
-    void* record, char opt, std::string_view rest, next_t next
+    void* record, based::character opt, std::string_view rest, next_t next
 ) const
 {
   const auto option = get_option(opt);
@@ -240,7 +242,7 @@ parser_base::next_t parser_base::hdl_long_opt(
   return next;
 }
 
-[[nodiscard]] const option& parser_base::get_option(char opt) const
+[[nodiscard]] const option& parser_base::get_option(based::character opt) const
 {
   const auto idx = m_opt_short.get(opt);
   if (!idx.has_value()) {

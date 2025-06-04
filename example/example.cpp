@@ -72,7 +72,7 @@ int main()
       },
   };
 
-  std::vector<std::string_view> cmd_args {
+  const std::vector<std::string_view> cmd_args {
       "--value=150",
       "-m1.34",
       "--name",
@@ -86,11 +86,10 @@ int main()
   arguments args;
 
   program.help_long();
-  /*
+
   std::cout << args << '\n';
   program(args, cmd_args);
   std::cout << args << '\n';
-  */
 
   return 0;
 }
