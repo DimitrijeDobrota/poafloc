@@ -18,7 +18,7 @@ struct short_map
 {
   constexpr bool operator()(based::character chr) const
   {
-    return based::is_alpha(chr);
+    return based::is_alpha(chr) || chr == '?';
   }
 };
 

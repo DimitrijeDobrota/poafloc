@@ -16,11 +16,11 @@ std::string format_option_long(const option& option)
   const auto& opt = option.opt_long();
   switch (option.get_type()) {
     case option::type::boolean:
-      return std::format("{}", opt);
+      return std::format("--{}", opt);
     case option::type::list:
-      return std::format("{}={}...", opt, option.name());
+      return std::format("--{}={}...", opt, option.name());
     default:
-      return std::format("{}={}", opt, option.name());
+      return std::format("--{}={}", opt, option.name());
   }
 }
 
@@ -29,19 +29,21 @@ std::string format_option_short(const option& option)
   const auto& opt = option.opt_short();
   switch (option.get_type()) {
     case option::type::boolean:
-      return std::format("{}", opt);
+      return std::format("-{}", opt);
     case option::type::list:
-      return std::format("{} {}...", opt, option.name());
+      return std::format("-{} {}...", opt, option.name());
     default:
-      return std::format("{} {}", opt, option.name());
+      return std::format("-{} {}", opt, option.name());
   }
 }
 
 }  // namespace
 
-void parser_base::help_usage() const
+void parser_base::help_usage(std::string_view program) const
 {
-  std::cerr << "Usage: program [OPTIONS]";
+  std::cerr << "Usage: ";
+  std::cerr << program;
+  std::cerr << " [OPTIONS]";
   for (const auto& pos : m_pos) {
     std::cerr << std::format(" {}", pos.name());
   }
@@ -51,9 +53,9 @@ void parser_base::help_usage() const
   std::cerr << '\n';
 }
 
-void parser_base::help_long() const
+bool parser_base::help_long(std::string_view program) const
 {
-  help_usage();
+  help_usage(program);
 
   auto idx = size_type(0_u);
   for (const auto& [end_idx, name] : m_groups) {
@@ -69,9 +71,9 @@ void parser_base::help_long() const
         line += std::string(4, ' ');
       }
       if (opt.has_opt_long()) {
-        line += std::format(" --{},", format_option_long(opt));
+        line += " ";
+        line += format_option_long(opt);
       }
-      line.pop_back();  // get rid of superfluous ','
 
       static constexpr const auto zero = std::size_t {0};
       static constexpr const auto mid = std::size_t {30};
@@ -82,9 +84,10 @@ void parser_base::help_long() const
   }
 
   std::cerr << '\n';
+  return true;
 }
 
-void parser_base::help_short() const
+bool parser_base::help_short(std::string_view program) const
 {
   std::vector<std::string> opts_short;
   std::vector<std::string> opts_long;
@@ -95,12 +98,12 @@ void parser_base::help_short() const
       if (opt.get_type() == option::type::boolean) {
         flags += opt.opt_short().chr();
       } else {
-        opts_short.emplace_back(std::format("[-{}]", format_option_short(opt)));
+        opts_short.emplace_back(format_option_short(opt));
       }
     }
 
     if (opt.has_opt_long()) {
-      opts_long.emplace_back(std::format("[--{}]", format_option_long(opt)));
+      opts_long.emplace_back(format_option_long(opt));
     }
   }
 
@@ -108,7 +111,7 @@ void parser_base::help_short() const
   std::ranges::sort(opts_long);
   std::ranges::sort(flags);
 
-  static const std::string_view usage = "Usage: ";
+  static const std::string_view usage = "Usage:";
   std::cerr << usage << ' ';
 
   std::string line;
@@ -123,17 +126,17 @@ void parser_base::help_short() const
     line += data;
   };
 
-  line += "program";
+  line += program;
   if (!flags.empty()) {
-    line += std::format(" [-{}]", flags);
+    print(std::format("[-{}]", flags));
   }
 
   for (const auto& opt : opts_short) {
-    print(opt);
+    print(std::format("[{}]", opt));
   }
 
   for (const auto& opt : opts_long) {
-    print(opt);
+    print(std::format("[{}]", opt));
   }
 
   for (const auto& pos : m_pos) {
@@ -145,6 +148,7 @@ void parser_base::help_short() const
     std::cerr << "...";
   }
   std::cerr << '\n' << '\n';
+  return true;
 }
 
 }  // namespace poafloc::detail

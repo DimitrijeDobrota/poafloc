@@ -12,9 +12,10 @@ namespace poafloc
 {
 
 #define ENUM_ERROR                                                             \
-  invalid_option, invalid_positional, invalid_terminal, missing_option,        \
-      missing_argument, missing_positional, superfluous_argument,              \
-      superfluous_positional, unknown_option, duplicate_option
+  help, empty, invalid_option, invalid_positional, invalid_terminal,           \
+      missing_option, missing_argument, missing_positional,                    \
+      superfluous_argument, superfluous_positional, unknown_option,            \
+      duplicate_option
 BASED_DECLARE_ENUM(error_code, based::bu8, 0, ENUM_ERROR)
 BASED_DEFINE_ENUM(error_code, based::bu8, 0, ENUM_ERROR)
 #undef ENUM_ERROR
@@ -22,6 +23,10 @@ BASED_DEFINE_ENUM(error_code, based::bu8, 0, ENUM_ERROR)
 static constexpr const char* error_get_message(error_code::enum_type error)
 {
   switch (error()) {
+    case error_code::help():
+      return "Help text was displayed";
+    case error_code::empty():
+      return "Option list is empty";
     case error_code::invalid_option():
       return "Invalid option name: {}";
     case error_code::invalid_positional():

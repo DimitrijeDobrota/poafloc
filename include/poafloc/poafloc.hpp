@@ -1,6 +1,5 @@
 #pragma once
 
-#include <cstring>
 #include <functional>
 #include <initializer_list>
 #include <memory>
@@ -43,12 +42,12 @@ public:
   };
 
 private:
-  using func_t = std::function<void(void*, std::string_view)>;
+  using func_type = std::function<void(void*, std::string_view)>;
 
   using size_type = based::u64;
 
   type m_type;
-  func_t m_func;
+  func_type m_func;
 
   based::character m_opt_short;
   std::string m_opt_long;
@@ -58,11 +57,14 @@ private:
 
 protected:
   // used for args
-  explicit option(type type, func_t func, std::string_view help = "");
+  explicit option(type opt_type, func_type func, std::string_view help);
 
   // used for options
   explicit option(
-      type type, std::string_view opts, func_t func, std::string_view help = ""
+      type opt_type,
+      std::string_view opts,
+      func_type func,
+      std::string_view help
   );
 
   template<class Record, class Type, class Member = Type Record::*>
@@ -166,7 +168,7 @@ public:
   using rec_type = Record;
 
   explicit direct(
-      std::string_view opts, member_type member, std::string_view help = ""
+      std::string_view opts, member_type member, std::string_view help
   )
       : base(
             base::type::direct,
@@ -178,19 +180,27 @@ public:
   }
 };
 
-template<class Record>
+template<class Record, class Type>
 class boolean : public detail::option
 {
   using base = detail::option;
-  using member_type = bool Record::*;
+  using member_type = Type Record::*;
 
   static auto create(member_type member)
   {
     return [member](void* record_raw, std::string_view value)
     {
-      (void)value;
       auto* record = static_cast<Record*>(record_raw);
-      std::invoke(member, record) = true;
+      if constexpr (std::is_invocable_v<member_type, Record, std::string_view>)
+      {
+        std::invoke(member, record, value);
+      } else if constexpr (std::is_invocable_v<member_type, Record, bool>) {
+        std::invoke(member, record, true);
+      } else if constexpr (std::is_assignable_v<Type, std::string_view>) {
+        std::invoke(member, record) = value;
+      } else {
+        std::invoke(member, record) = true;
+      }
     };
   }
 
@@ -198,7 +208,7 @@ public:
   using rec_type = Record;
 
   explicit boolean(
-      std::string_view opts, member_type member, std::string_view help = ""
+      std::string_view opts, member_type member, std::string_view help
   )
       : base(base::type::boolean, opts, create(member), help)
   {
@@ -216,7 +226,7 @@ public:
   using rec_type = Record;
 
   explicit list(
-      std::string_view opts, member_type member, std::string_view help = ""
+      std::string_view opts, member_type member, std::string_view help
   )
       : base(
             base::type::list,
@@ -308,8 +318,8 @@ struct is_option<direct<Record, Type>> : based::true_type
 {
 };
 
-template<class Record>
-struct is_option<boolean<Record>> : based::true_type
+template<class Record, class Type>
+struct is_option<boolean<Record, Type>> : based::true_type
 {
 };
 
@@ -454,11 +464,19 @@ class parser_base
 
   using next_t = std::span<const std::string_view>;
 
-  next_t hdl_long_opt(void* record, std::string_view arg, next_t next) const;
-  next_t hdl_short_opts(void* record, std::string_view arg, next_t next) const;
+  next_t hdl_long_opt(
+      std::string_view program, void* record, std::string_view arg, next_t next
+  ) const;
+  next_t hdl_short_opts(
+      std::string_view program, void* record, std::string_view arg, next_t next
+  ) const;
   next_t hdl_short_opt(
       void* record, based::character opt, std::string_view rest, next_t next
   ) const;
+
+  void help_usage(std::string_view program) const;
+  [[nodiscard]] bool help_long(std::string_view program) const;
+  [[nodiscard]] bool help_short(std::string_view program) const;
 
 protected:
   template<class... Groups>
@@ -484,14 +502,24 @@ protected:
       m_groups.emplace_back(m_options.size(), group.name());
     };
     (process(groups), ...);
+
+    process(group<parser_base> {
+        "Informational Options",
+        boolean {
+            "? help",
+            &parser_base::help_long,
+            "Give this help list",
+        },
+        boolean {
+            "usage",
+            &parser_base::help_short,
+            "Give a short usage message",
+        },
+    });
   }
 
   void operator()(void* record, int argc, const char** argv);
   void operator()(void* record, std::span<const std::string_view> args);
-
-  void help_usage() const;
-  void help_long() const;
-  void help_short() const;
 };
 
 }  // namespace detail
@@ -521,9 +549,6 @@ struct parser : detail::parser_base
         )
   {
   }
-
-  using parser_base::help_long;
-  using parser_base::help_short;
 
   void operator()(Record& record, int argc, const char** argv)
   {

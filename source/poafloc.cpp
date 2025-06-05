@@ -5,14 +5,14 @@
 namespace
 {
 
-constexpr bool is_option(std::string_view arg)
+constexpr bool is_option_str(std::string_view arg)
 {
   return arg.starts_with("-");
 }
 
 constexpr bool is_next_option(std::span<const std::string_view> args)
 {
-  return args.empty() || is_option(args.front());
+  return args.empty() || is_option_str(args.front());
 }
 
 }  // namespace
@@ -20,17 +20,20 @@ constexpr bool is_next_option(std::span<const std::string_view> args)
 namespace poafloc::detail
 {
 
-option::option(option::type type, func_t func, std::string_view help)
-    : m_type(type)
+option::option(option::type opt_type, func_type func, std::string_view help)
+    : m_type(opt_type)
     , m_func(std::move(func))
     , m_name(help)
 {
 }
 
 option::option(
-    option::type type, std::string_view opts, func_t func, std::string_view help
+    option::type opt_type,
+    std::string_view opts,
+    func_type func,
+    std::string_view help
 )
-    : m_type(type)
+    : m_type(opt_type)
     , m_func(std::move(func))
 {
   auto istr = std::istringstream(std::string(opts));
@@ -48,7 +51,7 @@ option::option(
     throw error<error_code::missing_option>();
   }
 
-  if (type != option::type::boolean) {
+  if (opt_type != option::type::boolean) {
     const auto pos = help.find(' ');
     m_name = help.substr(0, pos);
     m_message = help.substr(pos + 1);
@@ -79,7 +82,7 @@ void parser_base::process(const option& option)
 void parser_base::operator()(void* record, int argc, const char** argv)
 {
   std::vector<std::string_view> args(
-      argv + 1, argv + argc  // NOLINT(*pointer*)
+      argv, argv + argc  // NOLINT(*pointer*)
   );
   operator()(record, args);
 }
@@ -88,13 +91,18 @@ void parser_base::operator()(
     void* record, std::span<const std::string_view> args
 )
 {
-  std::size_t arg_idx = 0;
+  if (args.empty()) {
+    throw error<error_code::empty>();
+  }
+
+  const auto program = args[0];
+  std::size_t arg_idx = 1;
   bool is_term = false;
 
   while (arg_idx != std::size(args)) {
     const auto arg_raw = args[arg_idx];
 
-    if (!::is_option(arg_raw)) {
+    if (!is_option_str(arg_raw)) {
       break;
     }
 
@@ -110,8 +118,8 @@ void parser_base::operator()(
 
     const auto next = args.subspan(arg_idx + 1);
     const auto res = arg_raw[1] != '-'
-        ? hdl_short_opts(record, arg_raw.substr(1), next)
-        : hdl_long_opt(record, arg_raw.substr(2), next);
+        ? hdl_short_opts(program, record, arg_raw.substr(1), next)
+        : hdl_long_opt(program, record, arg_raw.substr(2), next);
     arg_idx = std::size(args) - std::size(res);
   }
 
@@ -122,7 +130,7 @@ void parser_base::operator()(
       throw error<error_code::invalid_terminal>(arg);
     }
 
-    if (!is_term && ::is_option(arg)) {
+    if (!is_term && is_option_str(arg)) {
       throw error<error_code::invalid_positional>(arg);
     }
 
@@ -181,19 +189,24 @@ parser_base::next_t parser_base::hdl_short_opt(
 }
 
 parser_base::next_t parser_base::hdl_short_opts(
-    void* record, std::string_view arg, next_t next
+    std::string_view program, void* record, std::string_view arg, next_t next
 ) const
 {
   std::size_t opt_idx = 0;
   while (opt_idx < std::size(arg)) {
     const auto opt = arg[opt_idx];
-    const auto option = get_option(opt);
 
+    if (opt == '?') {
+      (void)help_long(program);
+      throw error<error_code::help>();
+    }
+
+    const auto option = get_option(opt);
     if (option.get_type() != option::type::boolean) {
       break;
     }
 
-    option(record, "true");
+    option(record, program);
     opt_idx++;
   }
 
@@ -203,7 +216,7 @@ parser_base::next_t parser_base::hdl_short_opts(
 }
 
 parser_base::next_t parser_base::hdl_long_opt(
-    void* record, std::string_view arg, next_t next
+    std::string_view program, void* record, std::string_view arg, next_t next
 ) const
 {
   const auto equal = arg.find('=');
@@ -225,10 +238,20 @@ parser_base::next_t parser_base::hdl_long_opt(
   }
 
   const auto opt = arg;
-  const auto option = get_option(opt);
 
+  if (opt == "help") {
+    (void)help_long(program);
+    throw error<error_code::help>();
+  }
+
+  if (opt == "usage") {
+    (void)help_short(program);
+    throw error<error_code::help>();
+  }
+
+  const auto option = get_option(opt);
   if (option.get_type() == option::type::boolean) {
-    option(record, "true");
+    option(record, program);
     return next;
   }
 

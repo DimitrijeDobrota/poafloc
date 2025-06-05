@@ -73,6 +73,7 @@ int main()
   };
 
   const std::vector<std::string_view> cmd_args {
+      "example",
       "-m1.34",
       "--name",
       "Hello there!",
@@ -87,8 +88,29 @@ int main()
 
   arguments args;
 
-  program.help_long();
-  program.help_short();
+  {
+    try {
+      const std::vector<std::string_view> help {
+          "example",
+          "-?",
+      };
+      program(args, help);
+    } catch (const error<error_code::help>& err) {
+      (void)err;
+    }
+  }
+
+  {
+    try {
+      const std::vector<std::string_view> usage {
+          "example",
+          "--usage",
+      };
+      program(args, usage);
+    } catch (const error<error_code::help>& err) {
+      (void)err;
+    }
+  }
 
   std::cout << args << '\n';
   program(args, cmd_args);

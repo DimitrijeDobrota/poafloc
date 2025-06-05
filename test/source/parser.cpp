@@ -19,6 +19,19 @@ TEST_CASE("invalid", "[poafloc/parser]")
     int value;
   };
 
+  SECTION("empty")
+  {
+    auto program = parser<arguments> {
+        group {
+            "unnamed",
+            boolean {"f", &arguments::flag, "NUM something"},
+        },
+    };
+    arguments args = {};
+    std::vector<std::string_view> cmdline = {};
+    REQUIRE_THROWS_AS(program(args, cmdline), error<error_code::empty>);
+  };
+
   SECTION("short number")
   {
     auto construct = []()
@@ -26,7 +39,7 @@ TEST_CASE("invalid", "[poafloc/parser]")
       return parser<arguments> {
           group {
               "unnamed",
-              boolean {"1", &arguments::flag},
+              boolean {"1", &arguments::flag, "NUM something"},
           },
       };
     };
@@ -40,7 +53,7 @@ TEST_CASE("invalid", "[poafloc/parser]")
       return parser<arguments> {
           group {
               "unnamed",
-              boolean {"FLAG", &arguments::flag},
+              boolean {"FLAG", &arguments::flag, "something"},
           },
       };
     };
@@ -54,7 +67,7 @@ TEST_CASE("invalid", "[poafloc/parser]")
       return parser<arguments> {
           group {
               "unnamed",
-              direct {"1value", &arguments::value},
+              direct {"1value", &arguments::value, "NUM something"},
           },
       };
     };
@@ -68,8 +81,8 @@ TEST_CASE("invalid", "[poafloc/parser]")
       return parser<arguments> {
           group {
               "unnamed",
-              boolean {"f flag", &arguments::flag},
-              direct {"f follow", &arguments::value},
+              boolean {"f flag", &arguments::flag, "something"},
+              direct {"f follow", &arguments::value, "NUM something"},
           },
       };
     };
@@ -83,8 +96,8 @@ TEST_CASE("invalid", "[poafloc/parser]")
       return parser<arguments> {
           group {
               "unnamed",
-              boolean {"f flag", &arguments::flag},
-              direct {"v flag", &arguments::value},
+              boolean {"f flag", &arguments::flag, "something"},
+              direct {"v flag", &arguments::value, "something"},
           },
       };
     };
@@ -102,55 +115,55 @@ TEST_CASE("boolean", "[poafloc/parser]")
   auto program = parser<arguments> {
       group {
           "unnamed",
-          boolean {"f flag", &arguments::flag},
+          boolean {"f flag", &arguments::flag, "something"},
       },
   };
 
   SECTION("short")
   {
-    std::vector<std::string_view> cmdline = {"-f"};
+    std::vector<std::string_view> cmdline = {"test", "-f"};
     REQUIRE_NOTHROW(program(args, cmdline));
     REQUIRE(args.flag == true);
   }
 
   SECTION("long")
   {
-    std::vector<std::string_view> cmdline = {"--flag"};
+    std::vector<std::string_view> cmdline = {"test", "--flag"};
     REQUIRE_NOTHROW(program(args, cmdline));
     REQUIRE(args.flag == true);
   }
 
   SECTION("long partial")
   {
-    std::vector<std::string_view> cmdline = {"--fl"};
+    std::vector<std::string_view> cmdline = {"test", "--fl"};
     REQUIRE_NOTHROW(program(args, cmdline));
     REQUIRE(args.flag == true);
   }
 
   SECTION("short unknown")
   {
-    std::vector<std::string_view> cmdline = {"-u"};
+    std::vector<std::string_view> cmdline = {"test", "-u"};
     REQUIRE_THROWS_AS(program(args, cmdline), error<error_code::unknown_option>);
     REQUIRE(args.flag == false);
   }
 
   SECTION("long unknown")
   {
-    std::vector<std::string_view> cmdline = {"--unknown"};
+    std::vector<std::string_view> cmdline = {"test", "--unknown"};
     REQUIRE_THROWS_AS(program(args, cmdline), error<error_code::unknown_option>);
     REQUIRE(args.flag == false);
   }
 
   SECTION("long superfluous")
   {
-    std::vector<std::string_view> cmdline = {"--fl=something"};
+    std::vector<std::string_view> cmdline = {"test", "--fl=something"};
     REQUIRE_THROWS_AS(program(args, cmdline), error<error_code::superfluous_argument>);
     REQUIRE(args.flag == false);
   }
 
   SECTION("long superfluous missing")
   {
-    std::vector<std::string_view> cmdline = {"--fl="};
+    std::vector<std::string_view> cmdline = {"test", "--fl="};
     REQUIRE_THROWS_AS(program(args, cmdline), error<error_code::superfluous_argument>);
     REQUIRE(args.flag == false);
   }
@@ -166,118 +179,118 @@ TEST_CASE("direct string", "[poafloc/parser]")
   auto program = parser<arguments> {
       group {
           "unnamed",
-          direct {"n name", &arguments::name},
+          direct {"n name", &arguments::name, "NAME something"},
       },
   };
 
   SECTION("short")
   {
-    std::vector<std::string_view> cmdline = {"-n", "something"};
+    std::vector<std::string_view> cmdline = {"test", "-n", "something"};
     REQUIRE_NOTHROW(program(args, cmdline));
     REQUIRE(args.name == "something");
   }
 
   SECTION("short equal")
   {
-    std::vector<std::string_view> cmdline = {"-n=something"};
+    std::vector<std::string_view> cmdline = {"test", "-n=something"};
     REQUIRE_NOTHROW(program(args, cmdline));
     REQUIRE(args.name == "something");
   }
 
   SECTION("short together")
   {
-    std::vector<std::string_view> cmdline = {"-nsomething"};
+    std::vector<std::string_view> cmdline = {"test", "-nsomething"};
     REQUIRE_NOTHROW(program(args, cmdline));
     REQUIRE(args.name == "something");
   }
 
   SECTION("long")
   {
-    std::vector<std::string_view> cmdline = {"--name", "something"};
+    std::vector<std::string_view> cmdline = {"test", "--name", "something"};
     REQUIRE_NOTHROW(program(args, cmdline));
     REQUIRE(args.name == "something");
   }
 
   SECTION("long partial")
   {
-    std::vector<std::string_view> cmdline = {"--na", "something"};
+    std::vector<std::string_view> cmdline = {"test", "--na", "something"};
     REQUIRE_NOTHROW(program(args, cmdline));
     REQUIRE(args.name == "something");
   }
 
   SECTION("long equal")
   {
-    std::vector<std::string_view> cmdline = {"--name=something"};
+    std::vector<std::string_view> cmdline = {"test", "--name=something"};
     REQUIRE_NOTHROW(program(args, cmdline));
     REQUIRE(args.name == "something");
   }
 
   SECTION("long equal partial")
   {
-    std::vector<std::string_view> cmdline = {"--na=something"};
+    std::vector<std::string_view> cmdline = {"test", "--na=something"};
     REQUIRE_NOTHROW(program(args, cmdline));
     REQUIRE(args.name == "something");
   }
 
   SECTION("short missing")
   {
-    std::vector<std::string_view> cmdline = {"-n"};
+    std::vector<std::string_view> cmdline = {"test", "-n"};
     REQUIRE_THROWS_AS(program(args, cmdline), error<error_code::missing_argument>);
     REQUIRE(args.name == "default");
   }
 
   SECTION("short equal missing")
   {
-    std::vector<std::string_view> cmdline = {"-n="};
+    std::vector<std::string_view> cmdline = {"test", "-n="};
     REQUIRE_THROWS_AS(program(args, cmdline), error<error_code::missing_argument>);
     REQUIRE(args.name == "default");
   }
 
   SECTION("long missing")
   {
-    std::vector<std::string_view> cmdline = {"--name"};
+    std::vector<std::string_view> cmdline = {"test", "--name"};
     REQUIRE_THROWS_AS(program(args, cmdline), error<error_code::missing_argument>);
     REQUIRE(args.name == "default");
   }
 
   SECTION("long partial missing")
   {
-    std::vector<std::string_view> cmdline = {"--na"};
+    std::vector<std::string_view> cmdline = {"test", "--na"};
     REQUIRE_THROWS_AS(program(args, cmdline), error<error_code::missing_argument>);
     REQUIRE(args.name == "default");
   }
 
   SECTION("long equal missing")
   {
-    std::vector<std::string_view> cmdline = {"--name="};
+    std::vector<std::string_view> cmdline = {"test", "--name="};
     REQUIRE_THROWS_AS(program(args, cmdline), error<error_code::missing_argument>);
     REQUIRE(args.name == "default");
   }
 
   SECTION("long equal partial missing")
   {
-    std::vector<std::string_view> cmdline = {"--na="};
+    std::vector<std::string_view> cmdline = {"test", "--na="};
     REQUIRE_THROWS_AS(program(args, cmdline), error<error_code::missing_argument>);
     REQUIRE(args.name == "default");
   }
 
   SECTION("short unknown")
   {
-    std::vector<std::string_view> cmdline = {"-u", "something"};
+    std::vector<std::string_view> cmdline = {"test", "-u", "something"};
     REQUIRE_THROWS_AS(program(args, cmdline), error<error_code::unknown_option>);
     REQUIRE(args.name == "default");
   }
 
   SECTION("long unknown")
   {
-    std::vector<std::string_view> cmdline = {"--unknown", "something"};
+    std::vector<std::string_view> cmdline = {"test", "--unknown", "something"};
     REQUIRE_THROWS_AS(program(args, cmdline), error<error_code::unknown_option>);
     REQUIRE(args.name == "default");
   }
 
   SECTION("long equal unknown")
   {
-    std::vector<std::string_view> cmdline = {"--unknown=something"};
+    std::vector<std::string_view> cmdline = {"test", "--unknown=something"};
     REQUIRE_THROWS_AS(program(args, cmdline), error<error_code::unknown_option>);
     REQUIRE(args.name == "default");
   }
@@ -293,118 +306,118 @@ TEST_CASE("direct value", "[poafloc/parser]")
   auto program = parser<arguments> {
       group {
           "unnamed",
-          direct {"v value", &arguments::value},
+          direct {"v value", &arguments::value, "NUM something"},
       },
   };
 
   SECTION("short")
   {
-    std::vector<std::string_view> cmdline = {"-v", "135"};
+    std::vector<std::string_view> cmdline = {"test", "-v", "135"};
     REQUIRE_NOTHROW(program(args, cmdline));
     REQUIRE(args.value == 135);
   }
 
   SECTION("short equal")
   {
-    std::vector<std::string_view> cmdline = {"-v=135"};
+    std::vector<std::string_view> cmdline = {"test", "-v=135"};
     REQUIRE_NOTHROW(program(args, cmdline));
     REQUIRE(args.value == 135);
   }
 
   SECTION("short together")
   {
-    std::vector<std::string_view> cmdline = {"-v135"};
+    std::vector<std::string_view> cmdline = {"test", "-v135"};
     REQUIRE_NOTHROW(program(args, cmdline));
     REQUIRE(args.value == 135);
   }
 
   SECTION("long")
   {
-    std::vector<std::string_view> cmdline = {"--value", "135"};
+    std::vector<std::string_view> cmdline = {"test", "--value", "135"};
     REQUIRE_NOTHROW(program(args, cmdline));
     REQUIRE(args.value == 135);
   }
 
   SECTION("long partial")
   {
-    std::vector<std::string_view> cmdline = {"--val", "135"};
+    std::vector<std::string_view> cmdline = {"test", "--val", "135"};
     REQUIRE_NOTHROW(program(args, cmdline));
     REQUIRE(args.value == 135);
   }
 
   SECTION("long equal")
   {
-    std::vector<std::string_view> cmdline = {"--value=135"};
+    std::vector<std::string_view> cmdline = {"test", "--value=135"};
     REQUIRE_NOTHROW(program(args, cmdline));
     REQUIRE(args.value == 135);
   }
 
   SECTION("long equal partial")
   {
-    std::vector<std::string_view> cmdline = {"--val=135"};
+    std::vector<std::string_view> cmdline = {"test", "--val=135"};
     REQUIRE_NOTHROW(program(args, cmdline));
     REQUIRE(args.value == 135);
   }
 
   SECTION("short missing")
   {
-    std::vector<std::string_view> cmdline = {"-v"};
+    std::vector<std::string_view> cmdline = {"test", "-v"};
     REQUIRE_THROWS_AS(program(args, cmdline), error<error_code::missing_argument>);
     REQUIRE(args.value == 0);
   }
 
   SECTION("short equal missing")
   {
-    std::vector<std::string_view> cmdline = {"-v="};
+    std::vector<std::string_view> cmdline = {"test", "-v="};
     REQUIRE_THROWS_AS(program(args, cmdline), error<error_code::missing_argument>);
     REQUIRE(args.value == 0);
   }
 
   SECTION("long missing")
   {
-    std::vector<std::string_view> cmdline = {"--value"};
+    std::vector<std::string_view> cmdline = {"test", "--value"};
     REQUIRE_THROWS_AS(program(args, cmdline), error<error_code::missing_argument>);
     REQUIRE(args.value == 0);
   }
 
   SECTION("long partial missing")
   {
-    std::vector<std::string_view> cmdline = {"--val"};
+    std::vector<std::string_view> cmdline = {"test", "--val"};
     REQUIRE_THROWS_AS(program(args, cmdline), error<error_code::missing_argument>);
     REQUIRE(args.value == 0);
   }
 
   SECTION("long equal missing")
   {
-    std::vector<std::string_view> cmdline = {"--value="};
+    std::vector<std::string_view> cmdline = {"test", "--value="};
     REQUIRE_THROWS_AS(program(args, cmdline), error<error_code::missing_argument>);
     REQUIRE(args.value == 0);
   }
 
   SECTION("long equal partial missing")
   {
-    std::vector<std::string_view> cmdline = {"--val="};
+    std::vector<std::string_view> cmdline = {"test", "--val="};
     REQUIRE_THROWS_AS(program(args, cmdline), error<error_code::missing_argument>);
     REQUIRE(args.value == 0);
   }
 
   SECTION("short unknown")
   {
-    std::vector<std::string_view> cmdline = {"-u", "135"};
+    std::vector<std::string_view> cmdline = {"test", "-u", "135"};
     REQUIRE_THROWS_AS(program(args, cmdline), error<error_code::unknown_option>);
     REQUIRE(args.value == 0);
   }
 
   SECTION("long unknown")
   {
-    std::vector<std::string_view> cmdline = {"--unknown", "135"};
+    std::vector<std::string_view> cmdline = {"test", "--unknown", "135"};
     REQUIRE_THROWS_AS(program(args, cmdline), error<error_code::unknown_option>);
     REQUIRE(args.value == 0);
   }
 
   SECTION("long equal unknown")
   {
-    std::vector<std::string_view> cmdline = {"--unknown=135"};
+    std::vector<std::string_view> cmdline = {"test", "--unknown=135"};
     REQUIRE_THROWS_AS(program(args, cmdline), error<error_code::unknown_option>);
     REQUIRE(args.value == 0);
   }
@@ -421,18 +434,18 @@ TEST_CASE("list", "[poafloc/parser]")
 
   auto program = parser<arguments> {group {
       "unnamed",
-      list {"l list", &arguments::add},
+      list {"l list", &arguments::add, "NAME something"},
   }};
 
   SECTION("short empty")
   {
-    std::vector<std::string_view> cmdline = {"-l"};
+    std::vector<std::string_view> cmdline = {"test", "-l"};
     REQUIRE_THROWS_AS(program(args, cmdline), error<error_code::missing_argument>);
   }
 
   SECTION("short one")
   {
-    std::vector<std::string_view> cmdline = {"-l", "one"};
+    std::vector<std::string_view> cmdline = {"test", "-l", "one"};
     REQUIRE_NOTHROW(program(args, cmdline));
     REQUIRE(std::size(args.list) == 1);
     REQUIRE(args.list[0] == "one");
@@ -440,7 +453,7 @@ TEST_CASE("list", "[poafloc/parser]")
 
   SECTION("short two")
   {
-    std::vector<std::string_view> cmdline = {"-l", "one", "two"};
+    std::vector<std::string_view> cmdline = {"test", "-l", "one", "two"};
     REQUIRE_NOTHROW(program(args, cmdline));
     REQUIRE(std::size(args.list) == 2);
     REQUIRE(args.list[0] == "one");
@@ -449,7 +462,9 @@ TEST_CASE("list", "[poafloc/parser]")
 
   SECTION("short three")
   {
-    std::vector<std::string_view> cmdline = {"-l", "one", "two", "three"};
+    std::vector<std::string_view> cmdline = {
+        "test", "-l", "one", "two", "three"
+    };
     REQUIRE_NOTHROW(program(args, cmdline));
     REQUIRE(std::size(args.list) == 3);
     REQUIRE(args.list[0] == "one");
@@ -459,13 +474,13 @@ TEST_CASE("list", "[poafloc/parser]")
 
   SECTION("short terminal")
   {
-    std::vector<std::string_view> cmdline = {"-l", "--"};
+    std::vector<std::string_view> cmdline = {"test", "-l", "--"};
     REQUIRE_THROWS_AS(program(args, cmdline), error<error_code::missing_argument>);
   }
 
   SECTION("short terminal one")
   {
-    std::vector<std::string_view> cmdline = {"-l", "one", "--"};
+    std::vector<std::string_view> cmdline = {"test", "-l", "one", "--"};
     REQUIRE_NOTHROW(program(args, cmdline));
     REQUIRE(std::size(args.list) == 1);
     REQUIRE(args.list[0] == "one");
@@ -473,7 +488,7 @@ TEST_CASE("list", "[poafloc/parser]")
 
   SECTION("short terminal two")
   {
-    std::vector<std::string_view> cmdline = {"-l", "one", "two", "--"};
+    std::vector<std::string_view> cmdline = {"test", "-l", "one", "two", "--"};
     REQUIRE_NOTHROW(program(args, cmdline));
     REQUIRE(std::size(args.list) == 2);
     REQUIRE(args.list[0] == "one");
@@ -482,7 +497,9 @@ TEST_CASE("list", "[poafloc/parser]")
 
   SECTION("short terminal three")
   {
-    std::vector<std::string_view> cmdline = {"-l", "one", "two", "three", "--"};
+    std::vector<std::string_view> cmdline = {
+        "test", "-l", "one", "two", "three", "--"
+    };
     REQUIRE_NOTHROW(program(args, cmdline));
     REQUIRE(std::size(args.list) == 3);
     REQUIRE(args.list[0] == "one");
@@ -492,13 +509,13 @@ TEST_CASE("list", "[poafloc/parser]")
 
   SECTION("long empty")
   {
-    std::vector<std::string_view> cmdline = {"--list"};
+    std::vector<std::string_view> cmdline = {"test", "--list"};
     REQUIRE_THROWS_AS(program(args, cmdline), error<error_code::missing_argument>);
   }
 
   SECTION("long one")
   {
-    std::vector<std::string_view> cmdline = {"--list", "one"};
+    std::vector<std::string_view> cmdline = {"test", "--list", "one"};
     REQUIRE_NOTHROW(program(args, cmdline));
     REQUIRE(std::size(args.list) == 1);
     REQUIRE(args.list[0] == "one");
@@ -506,7 +523,7 @@ TEST_CASE("list", "[poafloc/parser]")
 
   SECTION("long two")
   {
-    std::vector<std::string_view> cmdline = {"--list", "one", "two"};
+    std::vector<std::string_view> cmdline = {"test", "--list", "one", "two"};
     REQUIRE_NOTHROW(program(args, cmdline));
     REQUIRE(std::size(args.list) == 2);
     REQUIRE(args.list[0] == "one");
@@ -515,7 +532,9 @@ TEST_CASE("list", "[poafloc/parser]")
 
   SECTION("long three")
   {
-    std::vector<std::string_view> cmdline = {"--list", "one", "two", "three"};
+    std::vector<std::string_view> cmdline = {
+        "test", "--list", "one", "two", "three"
+    };
     REQUIRE_NOTHROW(program(args, cmdline));
     REQUIRE(std::size(args.list) == 3);
     REQUIRE(args.list[0] == "one");
@@ -525,13 +544,13 @@ TEST_CASE("list", "[poafloc/parser]")
 
   SECTION("long terminal")
   {
-    std::vector<std::string_view> cmdline = {"--list", "--"};
+    std::vector<std::string_view> cmdline = {"test", "--list", "--"};
     REQUIRE_THROWS_AS(program(args, cmdline), error<error_code::missing_argument>);
   }
 
   SECTION("long terminal one")
   {
-    std::vector<std::string_view> cmdline = {"--list", "one", "--"};
+    std::vector<std::string_view> cmdline = {"test", "--list", "one", "--"};
     REQUIRE_NOTHROW(program(args, cmdline));
     REQUIRE(std::size(args.list) == 1);
     REQUIRE(args.list[0] == "one");
@@ -539,7 +558,9 @@ TEST_CASE("list", "[poafloc/parser]")
 
   SECTION("long terminal two")
   {
-    std::vector<std::string_view> cmdline = {"--list", "one", "two", "--"};
+    std::vector<std::string_view> cmdline = {
+        "test", "--list", "one", "two", "--"
+    };
     REQUIRE_NOTHROW(program(args, cmdline));
     REQUIRE(std::size(args.list) == 2);
     REQUIRE(args.list[0] == "one");
@@ -549,7 +570,7 @@ TEST_CASE("list", "[poafloc/parser]")
   SECTION("long terminal three")
   {
     std::vector<std::string_view> cmdline = {
-        "--list", "one", "two", "three", "--"
+        "test", "--list", "one", "two", "three", "--"
     };
     REQUIRE_NOTHROW(program(args, cmdline));
     REQUIRE(std::size(args.list) == 3);
@@ -576,27 +597,29 @@ TEST_CASE("positional", "[poafloc/parser]")
       },
       group {
           "unnamed",
-          boolean {"f flag", &arguments::flag},
-          direct {"v value", &arguments::value},
+          boolean {"f flag", &arguments::flag, "something"},
+          direct {"v value", &arguments::value, "NUM something"},
       }
   };
 
   SECTION("empty")
   {
-    std::vector<std::string_view> cmdline = {};
+    std::vector<std::string_view> cmdline = {
+        "test",
+    };
     REQUIRE_THROWS_AS(program(args, cmdline), error<error_code::missing_positional>);
   }
 
   SECTION("one")
   {
-    std::vector<std::string_view> cmdline = {"one"};
+    std::vector<std::string_view> cmdline = {"test", "one"};
     REQUIRE_THROWS_AS(program(args, cmdline), error<error_code::missing_positional>);
     REQUIRE(args.one == "one");
   }
 
   SECTION("two")
   {
-    std::vector<std::string_view> cmdline = {"one", "two"};
+    std::vector<std::string_view> cmdline = {"test", "one", "two"};
     REQUIRE_NOTHROW(program(args, cmdline));
     REQUIRE(args.one == "one");
     REQUIRE(args.two == "two");
@@ -604,7 +627,7 @@ TEST_CASE("positional", "[poafloc/parser]")
 
   SECTION("three")
   {
-    std::vector<std::string_view> cmdline = {"one", "two", "three"};
+    std::vector<std::string_view> cmdline = {"test", "one", "two", "three"};
     REQUIRE_THROWS_AS(program(args, cmdline), error<error_code::superfluous_positional>);
     REQUIRE(args.one == "one");
     REQUIRE(args.two == "two");
@@ -612,7 +635,7 @@ TEST_CASE("positional", "[poafloc/parser]")
 
   SECTION("flag short")
   {
-    std::vector<std::string_view> cmdline = {"-f", "one", "two"};
+    std::vector<std::string_view> cmdline = {"test", "-f", "one", "two"};
     REQUIRE_NOTHROW(program(args, cmdline));
     REQUIRE(args.flag == true);
     REQUIRE(args.one == "one");
@@ -621,7 +644,7 @@ TEST_CASE("positional", "[poafloc/parser]")
 
   SECTION("flag long")
   {
-    std::vector<std::string_view> cmdline = {"--flag", "one", "two"};
+    std::vector<std::string_view> cmdline = {"test", "--flag", "one", "two"};
     REQUIRE_NOTHROW(program(args, cmdline));
     REQUIRE(args.flag == true);
     REQUIRE(args.one == "one");
@@ -630,7 +653,7 @@ TEST_CASE("positional", "[poafloc/parser]")
 
   SECTION("value short")
   {
-    std::vector<std::string_view> cmdline = {"-v", "135", "one", "two"};
+    std::vector<std::string_view> cmdline = {"test", "-v", "135", "one", "two"};
     REQUIRE_NOTHROW(program(args, cmdline));
     REQUIRE(args.value == 135);
     REQUIRE(args.one == "one");
@@ -639,7 +662,7 @@ TEST_CASE("positional", "[poafloc/parser]")
 
   SECTION("value short together")
   {
-    std::vector<std::string_view> cmdline = {"-v135", "one", "two"};
+    std::vector<std::string_view> cmdline = {"test", "-v135", "one", "two"};
     REQUIRE_NOTHROW(program(args, cmdline));
     REQUIRE(args.value == 135);
     REQUIRE(args.one == "one");
@@ -648,7 +671,7 @@ TEST_CASE("positional", "[poafloc/parser]")
 
   SECTION("value short together")
   {
-    std::vector<std::string_view> cmdline = {"-v=135", "one", "two"};
+    std::vector<std::string_view> cmdline = {"test", "-v=135", "one", "two"};
     REQUIRE_NOTHROW(program(args, cmdline));
     REQUIRE(args.value == 135);
     REQUIRE(args.one == "one");
@@ -657,7 +680,9 @@ TEST_CASE("positional", "[poafloc/parser]")
 
   SECTION("value long")
   {
-    std::vector<std::string_view> cmdline = {"--value", "135", "one", "two"};
+    std::vector<std::string_view> cmdline = {
+        "test", "--value", "135", "one", "two"
+    };
     REQUIRE_NOTHROW(program(args, cmdline));
     REQUIRE(args.value == 135);
     REQUIRE(args.one == "one");
@@ -666,7 +691,9 @@ TEST_CASE("positional", "[poafloc/parser]")
 
   SECTION("value long equal")
   {
-    std::vector<std::string_view> cmdline = {"--value=135", "one", "two"};
+    std::vector<std::string_view> cmdline = {
+        "test", "--value=135", "one", "two"
+    };
     REQUIRE_NOTHROW(program(args, cmdline));
     REQUIRE(args.value == 135);
     REQUIRE(args.one == "one");
@@ -675,7 +702,7 @@ TEST_CASE("positional", "[poafloc/parser]")
 
   SECTION("flag short terminal")
   {
-    std::vector<std::string_view> cmdline = {"--", "one", "-f", "two"};
+    std::vector<std::string_view> cmdline = {"test", "--", "one", "-f", "two"};
     REQUIRE_THROWS_AS(program(args, cmdline), error<error_code::superfluous_positional>);
     REQUIRE(args.one == "one");
     REQUIRE(args.two == "-f");
@@ -683,19 +710,19 @@ TEST_CASE("positional", "[poafloc/parser]")
 
   SECTION("invalid terminal")
   {
-    std::vector<std::string_view> cmdline = {"one", "--", "-f", "two"};
+    std::vector<std::string_view> cmdline = {"test", "one", "--", "-f", "two"};
     REQUIRE_THROWS_AS(program(args, cmdline), error<error_code::invalid_terminal>);
   }
 
   SECTION("flag short non-terminal")
   {
-    std::vector<std::string_view> cmdline = {"one", "-f", "two"};
+    std::vector<std::string_view> cmdline = {"test", "one", "-f", "two"};
     REQUIRE_THROWS_AS(program(args, cmdline), error<error_code::invalid_positional>);
   }
 
   SECTION("flag long non-terminal")
   {
-    std::vector<std::string_view> cmdline = {"one", "--flag", "two"};
+    std::vector<std::string_view> cmdline = {"test", "one", "--flag", "two"};
     REQUIRE_THROWS_AS(program(args, cmdline), error<error_code::invalid_positional>);
   }
 }
@@ -713,16 +740,16 @@ TEST_CASE("multiple", "[poafloc/parser]")
   auto program = parser<arguments> {
       group {
           "unnamed",
-          boolean {"f flag1", &arguments::flag1},
-          boolean {"F flag2", &arguments::flag2},
-          direct {"v value1", &arguments::value1},
-          direct {"V value2", &arguments::value2},
+          boolean {"f flag1", &arguments::flag1, "something"},
+          boolean {"F flag2", &arguments::flag2, "something"},
+          direct {"v value1", &arguments::value1, "NUM something"},
+          direct {"V value2", &arguments::value2, "NUM something"},
       },
   };
 
   SECTION("valid")
   {
-    std::vector<std::string_view> cmdline = {"--flag1", "--flag2"};
+    std::vector<std::string_view> cmdline = {"test", "--flag1", "--flag2"};
     REQUIRE_NOTHROW(program(args, cmdline));
     REQUIRE(args.flag1 == true);
     REQUIRE(args.flag2 == true);
@@ -732,7 +759,7 @@ TEST_CASE("multiple", "[poafloc/parser]")
 
   SECTION("partial overlap")
   {
-    std::vector<std::string_view> cmdline = {"--fla", "--fla"};
+    std::vector<std::string_view> cmdline = {"test", "--fla", "--fla"};
     REQUIRE_THROWS_AS(program(args, cmdline), error<error_code::unknown_option>);
     REQUIRE(args.flag1 == false);
     REQUIRE(args.flag2 == false);
@@ -742,7 +769,7 @@ TEST_CASE("multiple", "[poafloc/parser]")
 
   SECTION("together")
   {
-    std::vector<std::string_view> cmdline = {"-fvF"};
+    std::vector<std::string_view> cmdline = {"test", "-fvF"};
     REQUIRE_NOTHROW(program(args, cmdline));
     REQUIRE(args.flag1 == true);
     REQUIRE(args.flag2 == false);
@@ -752,7 +779,7 @@ TEST_CASE("multiple", "[poafloc/parser]")
 
   SECTION("together equal")
   {
-    std::vector<std::string_view> cmdline = {"-fv=F"};
+    std::vector<std::string_view> cmdline = {"test", "-fv=F"};
     REQUIRE_NOTHROW(program(args, cmdline));
     REQUIRE(args.flag1 == true);
     REQUIRE(args.flag2 == false);
@@ -762,7 +789,7 @@ TEST_CASE("multiple", "[poafloc/parser]")
 
   SECTION("together next")
   {
-    std::vector<std::string_view> cmdline = {"-fv", "F"};
+    std::vector<std::string_view> cmdline = {"test", "-fv", "F"};
     REQUIRE_NOTHROW(program(args, cmdline));
     REQUIRE(args.flag1 == true);
     REQUIRE(args.flag2 == false);
