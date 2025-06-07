@@ -552,12 +552,20 @@ struct parser : detail::parser_base
 
   void operator()(Record& record, int argc, const char** argv)
   {
-    parser_base::operator()(&record, argc, argv);
+    try {
+      parser_base::operator()(&record, argc, argv);
+    } catch (const error<error_code::help>& err) {
+      (void)err;
+    }
   }
 
   void operator()(Record& record, std::span<const std::string_view> args)
   {
-    parser_base::operator()(&record, args);
+    try {
+      parser_base::operator()(&record, args);
+    } catch (const error<error_code::help>& err) {
+      (void)err;
+    }
   }
 };
 
