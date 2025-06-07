@@ -43,14 +43,16 @@ Refer to [GNU argp documentation](https://www.gnu.org/software/libc/manual/html_
 
 ## Version History
 
+- 2.0
+    * Reinvent with modern C++ features
+    * Structure bindings
+    * Exception based error handling
 - 1.2
     * Propagate parser generated error
-
 - 1.1
     * Modernize CMake project
     * Modernize codebase
     * Add test suite
-
 - 1.0
     * Initial Release
 
